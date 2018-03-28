@@ -2,8 +2,8 @@ import collections
 from cortexpy.test import builder
 from hypothesis import given, strategies as strat
 
-from abeona.test.expectation.mccortex import Graphs, Graph
-import abeona.subgraphs as subgraphs
+import abeona.__main__
+from tests.expectation.mccortex import Graphs, Graph
 
 Seq = collections.namedtuple('Seq', ['seq', 'order', 'kmers'])
 
@@ -27,7 +27,7 @@ def test_decompose(tmpdir, seqs):
     graphs = [out_dir / f'g{i}.ctx' for i in range(len(seqs))]
 
     # when
-    subgraphs.main(['subgraphs', str(graph), str(out_dir)])
+    abeona.__main__.main(['subgraphs',str(graph), str(out_dir)])
     expect = Graphs(graphs)
 
     # then

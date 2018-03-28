@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -euo pipefail
+IFS=$'\n\t'
+
+scripts/bootstrap
+
+MCCORTEX=${MCCORTEX:-'mccortex'}
+KMER_SIZE=${KMER_SIZE:-'47'}
+FIXTURE_DIR=fixtures/yeast
+
+$MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k $KMER_SIZE --sample yeast.chrom \
+    --seq $FIXTURE_DIR/NC_001133.9.fa \
+    $FIXTURE_DIR/NC_001133.9.ctx
+
+awk '{print substr($0, 1, 1000)}' < $FIXTURE_DIR/NC_001133.9.fa > $FIXTURE_DIR/NC_001133.9.1kbp.fa
+$MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k $KMER_SIZE --sample yeast.chrom \
+    --seq $FIXTURE_DIR/NC_001133.9.1kbp.fa \
+    $FIXTURE_DIR/NC_001133.9.1kbp.ctx
+
+awk '{print substr($0, 1, 4000)}' < $FIXTURE_DIR/NC_001133.9.fa > $FIXTURE_DIR/NC_001133.9.4kbp.fa
+$MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k $KMER_SIZE --sample yeast.chrom \
+    --seq $FIXTURE_DIR/NC_001133.9.4kbp.fa \
+    $FIXTURE_DIR/NC_001133.9.4kbp.ctx

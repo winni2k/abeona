@@ -7,7 +7,11 @@ name = "pypi"
 
 [packages]
 
-cortexpy = ">=0.19.3"
+cortexpy = "*"
+snakemake = "*"
+coverage = ">=4.5"
+pandas = "*"
+
 
 [dev-packages]
 
@@ -15,9 +19,10 @@ bitstring = "*"
 hypothesis = "*"
 pytest = "*"
 pytest-cov = "*"
-pytest-flake8 = "*"
+"pytest-flake8" = "*"
 pytest-pylint = "*"
 sphinx = "*"
 twine = "*"
 wheel = "*"
 coverage = ">=4.5"
+pytest-benchmark = "*"
