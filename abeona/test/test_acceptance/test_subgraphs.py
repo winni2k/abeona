@@ -1,25 +1,39 @@
-import os
+import collections
 from cortexpy.test import builder
+from hypothesis import given, strategies as strat
 
-from abeona.test.expectation.mccortex import Graphs
+from abeona.test.expectation.mccortex import Graphs, Graph
+import abeona.subgraphs as subgraphs
+
+Seq = collections.namedtuple('Seq', ['seq', 'order', 'kmers'])
 
 
-def test_decompose(tmpdir):
+@given(strat.sets(
+    strat.sampled_from([
+        Seq('AAAT', 0, ('AAA', 'AAT')),
+        Seq('ATCC', 1, ('ATC', 'GGA')),
+        Seq('CCCG', 2, ('CCC', 'CCG')),
+    ]),
+    min_size=1,
+    max_size=3))
+def test_decompose(tmpdir, seqs):
     # given
     b = builder.Mccortex(mccortex_bin='mccortex')
-    b.with_dna_sequence('AAAT')
-    b.with_dna_sequence('CCCG')
+    for seq in seqs:
+        b.with_dna_sequence(seq.seq)
     graph = b.build(tmpdir)
 
     out_dir = tmpdir / 'abeona_output'
-    graph1 = out_dir / 'g0.ctx'
-    graph2 = out_dir / 'g1.ctx'
+    graphs = [out_dir / f'g{i}.ctx' for i in range(len(seqs))]
 
     # when
-    os.system(f'abeona subgraphs {graph} {out_dir}')
-    expect = Graphs([graph1, graph2])
+    subgraphs.main(['subgraphs', str(graph), str(out_dir)])
+    expect = Graphs(graphs)
 
     # then
-    expect.has_graph_with_kmers('AAA', 'AAT')
-    expect.has_graph_with_kmers('CCC', 'CCG')
-    expect.has_n_graphs(2)
+    for seq in seqs:
+        expect.has_graph_with_kmers(*seq.kmers)
+    expect.has_n_graphs(len(seqs))
+
+    for graph, seq in zip(graphs, sorted(seqs, key=lambda s: s.order)):
+        Graph(graph).has_kmer_strings(*seq.kmers)

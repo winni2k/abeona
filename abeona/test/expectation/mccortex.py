@@ -1,6 +1,7 @@
 import attr
 import networkx as nx
-from cortexpy.graph.parser import RandomAccess, kmer_generator_from_stream
+from cortexpy.graph.parser import RandomAccess
+from cortexpy.graph.parser.streaming import kmer_list_generator_from_stream
 from cortexpy.graph.traversal import Engine
 
 
@@ -13,11 +14,9 @@ class Graph(object):
 
     def __attrs_post_init__(self):
         with open(self.mccortex_graph, 'rb') as fh:
-            self.kmers = list(kmer_generator_from_stream(fh))
-            self.kmer_strings = set(k.kmer for k in self.kmers)
-        with open(self.mccortex_graph, 'rb') as fh:
-            self.traversal = Engine(RandomAccess(fh)) \
-                .traverse_from_each_kmer_in_iterable((kmer.kmer for kmer in self.kmers)) \
+            self.kmer_strings = set([''.join(k) for k in kmer_list_generator_from_stream(fh)])
+            self.traversal = Engine(ra_parser=RandomAccess(fh)) \
+                .traverse_from_each_kmer_in_iterable(self.kmer_strings) \
                 .graph
 
     def has_n_subgraphs(self, n):
@@ -26,8 +25,7 @@ class Graph(object):
         return self
 
     def has_kmer_strings(self, *kmer_strings):
-        kmer_strings = set(kmer_strings)
-        assert set(k.kmer for k in self.kmers) == kmer_strings
+        assert self.kmer_strings == set(kmer_strings)
         return self
 
 
