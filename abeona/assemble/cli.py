@@ -62,8 +62,7 @@ def main(argv):
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
 
-    (out_dir / 'Snakefile').symlink_to(
-        '/Volumes/mac-3/home/to_be_backupped_unsensitive/Projects/abeona/scripts/Snakefile')
+    (out_dir / 'Snakefile').symlink_to(Path(__file__).parent / 'Snakefile')
 
     with open(out_dir / 'args.json', 'w') as fh:
         json.dump({a: getattr(args, a) for a in dir(args) if not a.startswith('_')}, fh)

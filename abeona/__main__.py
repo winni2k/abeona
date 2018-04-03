@@ -17,16 +17,18 @@ def main(argv):
         'subgraphs': subgraphs_main,
     }
     parser = argparse.ArgumentParser(description=f'abeona version {__version__}', prog='abeona')
-    parser.add_argument('-v', '--version', action='version', version=f'%(prog)s version {__version__}')
-    parser.add_argument('subcommand', choices=sorted(subcommands.keys()), help='abeona sub-command')
+    parser.add_argument('-v', '--version', action='version',
+                        version=f'%(prog)s version {__version__}')
+    parser.add_argument('sub_command', choices=sorted(subcommands.keys()),
+                        help='abeona sub-command')
     parser.add_argument('args', nargs=argparse.REMAINDER, help='sub-command arguments')
     args = parser.parse_args(argv)
 
-    return subcommands[args.subcommand](args.args)
+    return subcommands[args.sub_command](args.args)
 
 
 def assemble_main(argv):
-    from .assemble import main
+    from .assemble.cli import main
     return main(argv)
 
 

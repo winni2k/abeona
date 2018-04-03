@@ -15,14 +15,14 @@ with open('README.rst', 'r', encoding='utf-8') as f:
     readme = f.read()
 
 
-def get_requirements_from_pipfile_lock(pipfile_lock=None):
+def get_requirements_from_pipfile_lock(pipfile_lock=None, attribute='default'):
     if pipfile_lock is None:
         pipfile_lock = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Pipfile.lock')
     lock_data = json.load(open(pipfile_lock))
-    return [package_name for package_name in lock_data.get('default', {}).keys()]
+    return [package_name for package_name in lock_data.get(attribute, {}).keys()]
 
-
-REQUIRES = get_requirements_from_pipfile_lock()
+REQUIRES = get_requirements_from_pipfile_lock(attribute='default')
+TESTS_REQUIRE = get_requirements_from_pipfile_lock(attribute='develop')
 
 setup(
     name='abeona',
@@ -36,10 +36,6 @@ setup(
     url='https://github.com/winni2k/abeona',
     license='Apache-2.0',
 
-    keywords=[
-        '',
-    ],
-
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
@@ -50,9 +46,12 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
+    entry_points={
+        'console_scripts': ['abeona=abeona.__main__:main_without_argv'],
+    },
 
     install_requires=REQUIRES,
-    tests_require=['coverage', 'pytest'],
+    tests_require=TESTS_REQUIRE,
 
     packages=find_packages(),
 )
