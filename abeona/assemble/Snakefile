@@ -67,7 +67,10 @@ rule subgraph_cortex_graph:
     threads: 16
     run:
         out_dir = 'cortex_subgraphs'
-        shell(f'python -m abeona subgraphs {input} {out_dir} -m {ARGS["memory"]} -c {threads}')
+        cmd = f'python -m abeona subgraphs {input} {out_dir} -m {ARGS["memory"]} -c {threads}'
+        if ARGS['initial_contigs'] is not None:
+            cmd += f' --initial-contigs {ARGS["initial_contigs"]}'
+        shell(cmd)
 
 rule traverse_subgraphs:
     input: 'cortex_subgraphs/g{sg_id}.ctx'

@@ -35,6 +35,10 @@ class AbeonaExpectation(object):
     def has_subgraph(self, sg_id):
         return AbeonaSubgraphExpectation(self.out_dir, sg_id)
 
+    def has_n_subgraphs(self, n):
+        assert n == len(list((Path(self.out_dir) / 'cortex_subgraphs').glob('g*.ctx')))
+        return self
+
     def has_out_graph_with_kmers(self, *kmers):
         with open(self.out_graph, 'rb') as fh:
             output_kmers = [''.join(k) for k in kmer_list_generator_from_stream(fh)]
@@ -283,3 +287,60 @@ def test_when_filtering_traverses_three_subgraphs_into_two_transcripts(tmpdir):
             .has_nodes(*expected_aligned_kmers[sg_id])
         sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
         sg_expect.has_transcripts(*expected_sequences[sg_id])
+
+
+class TestInitialSeqsFasta(object):
+    def test_traverses_two_subgraphs_into_single_transcript(self, tmpdir):
+        # given
+        kmer_size = 3
+        sequences = ['AAAT', 'ATCC']
+        initial_seqs = ['AAAT']
+
+        inital_contigs_fasta = tmpdir / 'initial-contigs.fa'
+        SeqIO.write([SeqRecord(Seq(seq), id=str(idx)) for idx, seq in enumerate(initial_seqs)],
+                    str(inital_contigs_fasta),
+                    'fasta')
+
+        input_fastq = tmpdir / 'single.fq'
+        seq_recs = [SeqRecord(Seq(seq), id=str(idx),
+                              letter_annotations={"phred_quality": [40 for _ in range(len(seq))]})
+                    for
+                    idx, seq in enumerate(sequences)]
+        with open(input_fastq, 'w') as fh:
+            SeqIO.write(seq_recs, fh, 'fastq')
+
+        expected_kmers = [{'AAA', 'AAT'}, {'ATC', 'GGA'}]
+        all_expected_kmers = list(itertools.chain(*expected_kmers))
+
+        expected_subgraph_sequences = [['AAAT']]
+        expected_subgraph_kmers = [{'AAA', 'AAT'}]
+        expected_subgraph_aligned_kmers = [{'AAA', 'AAT'}, {'ATC', 'TCC'}]
+
+        out_dir = Path(tmpdir) / 'abeona'
+
+        # when
+        abeona.__main__.main(str(c) for c in ['assemble',
+                                              '--initial-contigs', inital_contigs_fasta,
+                                              '--fastx-single', input_fastq,
+                                              '--kallisto-fastx-single', input_fastq,
+                                              '--kallisto-fragment-length', 3,
+                                              '--kallisto-sd', 0.1,
+                                              '--bootstrap-samples', 100,
+                                              '--out-dir', out_dir,
+                                              '--kmer-size', kmer_size,
+                                              '--min-tip-length', 0,
+                                              '--min-unitig-coverage', 0, ])
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_graph_with_kmers(*all_expected_kmers)
+        expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
+
+        for sg_id in range(1):
+            sg_expect = expect.has_subgraph(sg_id)
+            sg_expect.has_cortex_graph_with_kmers(*expected_subgraph_kmers[sg_id]) \
+                .has_traversal() \
+                .has_nodes(*expected_subgraph_aligned_kmers[sg_id])
+            sg_expect.has_candidate_transcripts(*expected_subgraph_sequences[sg_id])
+            sg_expect.has_transcripts(*expected_subgraph_sequences[sg_id])
+        expect.has_n_subgraphs(1)

@@ -27,17 +27,20 @@ def main(argv):
     import argparse
     parser = argparse.ArgumentParser(description='Run abeona assembly pipeline.',
                                      prog='abeona assemble')
+    parser.add_argument('-o', '--out-dir', help='Output directory', required=True)
+    parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2)
+    parser.add_argument('-k', '--kmer-size', default=47)
+    parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes')
+    parser.add_argument('-q', '--quiet', action='store_true', default=False)
+
     parser.add_argument('--fastx-forward', help='Forward sequences in FASTA/FASTQ format',
                         required=False)
     parser.add_argument('--fastx-reverse', help='Reverse sequences in FASTA/FASTQ format',
                         required=False)
     parser.add_argument('--fastx-single', help='Single-end sequences in FASTA/FASTQ format',
                         required=False)
-    parser.add_argument('-o', '--out-dir', help='Output directory', required=True)
-    parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2)
-    parser.add_argument('-k', '--kmer-size', default=47)
-    parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes')
-    parser.add_argument('-q', '--quiet', action='store_true', default=False)
+    parser.add_argument('--initial-contigs', help='Only start assembly from contigs in this FASTA',
+                        required=False)
 
     group = parser.add_argument_group('graph traversal cleaning arguments')
     group.add_argument('--min-tip-length', type=int, default=0)

@@ -27,7 +27,7 @@ def test_decompose(tmpdir, seqs):
     graphs = [out_dir / f'g{i}.ctx' for i in range(len(seqs))]
 
     # when
-    abeona.__main__.main(['subgraphs',str(graph), str(out_dir)])
+    abeona.__main__.main(['subgraphs', str(graph), str(out_dir)])
     expect = Graphs(graphs)
 
     # then

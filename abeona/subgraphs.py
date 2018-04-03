@@ -77,6 +77,8 @@ def main(argv):
     parser.add_argument('out_dir')
     parser.add_argument('-m', '--memory', type=int, default=3)
     parser.add_argument('-c', '--cores', type=int, default=2)
+    parser.add_argument('--initial-contigs', help='Only start assembly from contigs in this FASTA',
+                        required=False)
 
     args = parser.parse_args(args=argv)
 
@@ -88,11 +90,29 @@ def main(argv):
         raise Exception(f'Input cortex graph ({input_graph}) does not exist')
 
     logger.info('Loading graph kmer strings')
-
     unseen_kmer_strings = collections.OrderedDict()
     with open(input_graph, 'rb') as fh:
         for kmer_list in kmer_list_generator_from_stream(fh):
             unseen_kmer_strings[''.join(kmer_list)] = None
+
+    if args.initial_contigs:
+        from cortexpy.utils import lexlo
+        logger.info('Subsetting graph kmer strings on initial-contig kmers')
+        initial_kmers = set()
+        for rec in SeqIO.parse(args.initial_contigs,'fasta'):
+            kmer_size = len(next(iter(unseen_kmer_strings)))
+            assert len(rec.seq) >= kmer_size
+            for start_idx in range(len(rec.seq) - kmer_size + 1):
+                initial_kmers.add(str(lexlo(rec.seq[start_idx:start_idx+kmer_size])))
+        logger.debug(f'initial kmers: {initial_kmers}')
+
+        logger.info(f'Keeping {len(initial_kmers)} out of {len(unseen_kmer_strings)} kmers')
+        old_unseen_kmer_strings = unseen_kmer_strings
+        unseen_kmer_strings = collections.OrderedDict()
+        for kmer in old_unseen_kmer_strings.keys():
+            if kmer in initial_kmers:
+                unseen_kmer_strings[kmer] = old_unseen_kmer_strings[kmer]
+
     logger.info('Building subgraphs')
     runner = MccortexRunner(dist=len(unseen_kmer_strings),
                             mem=args.memory,
