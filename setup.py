@@ -54,4 +54,5 @@ setup(
     tests_require=TESTS_REQUIRE,
 
     packages=find_packages(),
+    include_package_data=True,
 )

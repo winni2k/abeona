@@ -23,6 +23,20 @@ def validate_args(args, parser):
             raise parser.error('Required: --kallisto-sd')
 
 
+def make_file_paths_absolute(args):
+    for file_arg in [
+        'fastx_forward', 'fastx_reverse', 'fastx_single', 'initial_contigs',
+        'kallisto_fastx_forward', 'kallisto_fastx_reverse', 'kallisto_fastx_single'
+    ]:
+        file = getattr(args, file_arg)
+        if file is not None:
+            file = Path(file)
+            assert file.is_file()
+            file = file.absolute()
+            assert file.is_file()
+            setattr(args, file_arg, str(file))
+
+
 def main(argv):
     import argparse
     parser = argparse.ArgumentParser(description='Run abeona assembly pipeline.',
@@ -60,12 +74,17 @@ def main(argv):
     group.add_argument('--kallisto-sd', type=float)
 
     args = parser.parse_args(args=argv)
+    make_file_paths_absolute(args)
     validate_args(args, parser)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
 
-    (out_dir / 'Snakefile').symlink_to(Path(__file__).parent / 'Snakefile')
+    package_snakefile = Path(__file__).parent / 'Snakefile'
+    snakefile = out_dir / 'Snakefile'
+    if snakefile.is_file():
+        snakefile.unlink()
+    snakefile.symlink_to(package_snakefile)
 
     with open(out_dir / 'args.json', 'w') as fh:
         json.dump({a: getattr(args, a) for a in dir(args) if not a.startswith('_')}, fh)
