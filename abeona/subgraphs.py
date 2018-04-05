@@ -52,7 +52,8 @@ class MccortexRunner(object):
 def remove_subgraph_kmers_from_set(graph, kmer_set):
     """Reads kmer strings from graph and removes the strings from dict in place"""
     with open(graph, 'rb') as fh:
-        kmer_set -= set(kmer for kmer in kmer_string_generator_from_stream(fh))
+        for kmer in kmer_string_generator_from_stream(fh):
+            kmer_set.discard(kmer)
 
 
 def main(argv):
