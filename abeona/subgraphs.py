@@ -49,12 +49,10 @@ class MccortexRunner(object):
         shutil.move(tmp_out, out)
 
 
-def remove_subgraph_kmers_from_dict(graph, kmer_dict):
+def remove_subgraph_kmers_from_set(graph, kmer_set):
     """Reads kmer strings from graph and removes the strings from dict in place"""
     with open(graph, 'rb') as fh:
-        for kmer in kmer_string_generator_from_stream(fh):
-            if kmer in kmer_dict:
-                del kmer_dict[kmer]
+        kmer_set -= set(kmer for kmer in kmer_string_generator_from_stream(fh))
 
 
 def main(argv):
@@ -90,14 +88,12 @@ def main(argv):
                     initial_kmers.add(str(lexlo(rec.seq[start_idx:start_idx + kmer_size])))
             logger.info(f'Loaded {len(initial_kmers)} initial kmers')
             ra = RandomAccess(fh)
-            unseen_kmer_strings = collections.OrderedDict.fromkeys(
-                sorted(kmer for kmer in initial_kmers if kmer in ra))
+            unseen_kmer_strings = set(sorted(kmer for kmer in initial_kmers if kmer in ra))
         logger.info(f'Keeping {len(unseen_kmer_strings)} out of {len(initial_kmers)} initial kmers')
     else:
         logger.info('Loading graph kmer strings')
         with open(input_graph, 'rb') as fh:
-            unseen_kmer_strings = collections.OrderedDict.fromkeys(
-                kmer_string_generator_from_stream(fh))
+            unseen_kmer_strings = set(kmer_string_generator_from_stream(fh))
         logger.info(f'Completed loading {len(unseen_kmer_strings)} kmers')
 
     logger.info(f'Building subgraphs from {len(unseen_kmer_strings)} initial kmers')
@@ -109,12 +105,12 @@ def main(argv):
         graph_id = f'g{graph_idx}'
         logger.info(f'Building graph {graph_idx}. Remaining kmers: {len(unseen_kmer_strings)}')
 
-        initial_kmer_string = next(iter(unseen_kmer_strings.keys()))
+        initial_kmer_string = next(iter(unseen_kmer_strings))
         subgraph_path = out_dir / f'{graph_id}.ctx'
 
         runner.build_subgraph(input=input_graph,
                               out=subgraph_path,
                               initial_kmer=initial_kmer_string,
                               graph_id=graph_id)
-        remove_subgraph_kmers_from_dict(graph=subgraph_path, kmer_dict=unseen_kmer_strings)
+        remove_subgraph_kmers_from_set(graph=subgraph_path, kmer_set=unseen_kmer_strings)
         graph_idx += 1

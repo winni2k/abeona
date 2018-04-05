@@ -39,9 +39,6 @@ def test_decompose(tmpdir, seqs):
         expect.has_graph_with_kmers(*seq.kmers)
     expect.has_n_graphs(len(seqs))
 
-    for graph, seq in zip(graphs, sorted(seqs, key=lambda s: s.order)):
-        Graph(graph).has_kmer_strings(*seq.kmers)
-
 
 def test_allows_initial_kmer_not_in_seqs(tmpdir):
     # given

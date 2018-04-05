@@ -7,10 +7,14 @@ import networkx as nx
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from cortexpy.graph.parser import RandomAccess
 from cortexpy.test.expectation import KmerGraphExpectation
 
 import abeona.__main__
-from cortexpy.graph.parser.streaming import kmer_list_generator_from_stream
+from cortexpy.graph.parser.streaming import (
+    kmer_list_generator_from_stream,
+    kmer_string_generator_from_stream,
+)
 
 
 def get_graph_stream_iterator(file_handle):
@@ -26,14 +30,30 @@ class AbeonaExpectation(object):
     out_dir = attr.ib()
     out_graph = attr.ib(init=False)
     out_clean = attr.ib(init=False)
+    subgraphs = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
         self.out_graph = self.out_dir / 'cortex_graph' / 'full.ctx'
         self.out_clean = self.out_graph.with_suffix('.clean.ctx')
+        self.subgraphs = [self.out_dir / 'cortex_subgraphs' / f'g{i}.ctx'
+                          for i, _ in
+                          enumerate((self.out_dir / 'cortex_subgraphs').glob(f'g*.ctx'))]
 
     def has_subgraph(self, sg_id):
         return AbeonaSubgraphExpectation(self.out_dir, sg_id)
+
+    def has_subgraph_with_kmers(self, *kmers):
+        kmers = set(kmers)
+        assert len(kmers) > 0
+        for sg_id, sg in enumerate(self.subgraphs):
+            with open(sg, 'rb') as fh:
+                subgraph_kmers = set(kmer_string_generator_from_stream(fh))
+            if len(kmers & subgraph_kmers) > 0:
+                assert kmers == subgraph_kmers
+                return AbeonaSubgraphExpectation(self.out_dir, sg_id)
+        assert kmers == set()
+        return self
 
     def has_n_subgraphs(self, n):
         assert n == len(list((Path(self.out_dir) / 'cortex_subgraphs').glob('g*.ctx')))
@@ -189,9 +209,8 @@ def test_traverses_two_subgraphs_into_two_transcripts(tmpdir):
     expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
 
     for sg_id in range(2):
-        sg_expect = expect.has_subgraph(sg_id)
-        sg_expect.has_cortex_graph_with_kmers(*expected_kmers[sg_id]) \
-            .has_traversal() \
+        sg_expect = expect.has_subgraph_with_kmers(*expected_kmers[sg_id])
+        sg_expect.has_traversal() \
             .has_nodes(*expected_aligned_kmers[sg_id])
         sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
         sg_expect.has_transcripts(*expected_sequences[sg_id])
@@ -235,9 +254,8 @@ def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(tmpdir):
     expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
 
     for sg_id in range(2):
-        sg_expect = expect.has_subgraph(sg_id)
-        sg_expect.has_cortex_graph_with_kmers(*expected_kmers[sg_id]) \
-            .has_traversal() \
+        sg_expect = expect.has_subgraph_with_kmers(*expected_kmers[sg_id])
+        sg_expect.has_traversal() \
             .has_nodes(*expected_aligned_kmers[sg_id])
         sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
         sg_expect.has_transcripts(*expected_sequences[sg_id])
@@ -281,9 +299,8 @@ def test_when_filtering_traverses_three_subgraphs_into_two_transcripts(tmpdir):
     expect.has_out_clean_graph_with_kmers(*all_expected_clean_kmers)
 
     for sg_id in range(2):
-        sg_expect = expect.has_subgraph(sg_id)
-        sg_expect.has_cortex_graph_with_kmers(*expected_clean_kmers[sg_id]) \
-            .has_traversal() \
+        sg_expect = expect.has_subgraph_with_kmers(*expected_clean_kmers[sg_id])
+        sg_expect.has_traversal() \
             .has_nodes(*expected_aligned_kmers[sg_id])
         sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
         sg_expect.has_transcripts(*expected_sequences[sg_id])
@@ -337,10 +354,9 @@ class TestInitialSeqsFasta(object):
         expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
 
         for sg_id in range(1):
-            sg_expect = expect.has_subgraph(sg_id)
-            sg_expect.has_cortex_graph_with_kmers(*expected_subgraph_kmers[sg_id]) \
-                .has_traversal() \
+            sg_expect = expect.has_subgraph_with_kmers(*expected_subgraph_kmers[sg_id])
+            sg_expect.has_traversal() \
                 .has_nodes(*expected_subgraph_aligned_kmers[sg_id])
             sg_expect.has_candidate_transcripts(*expected_subgraph_sequences[sg_id])
             sg_expect.has_transcripts(*expected_subgraph_sequences[sg_id])
-        expect.has_n_subgraphs(1)
+            expect.has_n_subgraphs(1)
