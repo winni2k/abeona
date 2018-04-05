@@ -1,5 +1,4 @@
 import attr
-import collections
 from pathlib import Path
 from Bio import SeqIO
 from Bio.Seq import Seq

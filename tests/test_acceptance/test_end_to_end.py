@@ -7,7 +7,6 @@ import networkx as nx
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from cortexpy.graph.parser import RandomAccess
 from cortexpy.test.expectation import KmerGraphExpectation
 
 import abeona.__main__
