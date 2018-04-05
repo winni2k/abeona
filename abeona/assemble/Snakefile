@@ -56,8 +56,10 @@ rule full_cortex_graph:
 rule pruned_cortex_graph:
     input: 'cortex_graph/full.ctx'
     output: 'cortex_graph/full.clean.ctx'
+    threads: 16
     run:
         shell(f'{MCCORTEX} clean {MCCORTEX_ARGS}'
+              f' --threads {threads}'
               f' -T0 -U{ARGS["min_unitig_coverage"]}'
               f' --out {output} {input}')
 

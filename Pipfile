@@ -9,7 +9,6 @@ name = "pypi"
 
 cortexpy = "*"
 snakemake = "*"
-coverage = ">=4.5"
 pandas = "*"
 
 
@@ -24,5 +23,5 @@ pytest-pylint = "*"
 sphinx = "*"
 twine = "*"
 wheel = "*"
-coverage = ">=4.5"
 pytest-benchmark = "*"
+coverage = ">=4.5"
