@@ -7,16 +7,16 @@ from cortexpy.test import builder
 from hypothesis import given, strategies as strat
 
 import abeona.__main__
-from tests.expectation.mccortex import Graphs, Graph
+from tests.expectation.mccortex import Traversals
 
-SeqTup = collections.namedtuple('SeqTup', ['seq', 'order', 'kmers'])
+SeqTup = collections.namedtuple('SeqTup', ['seq', 'kmers'])
 
 
 @given(strat.sets(
     strat.sampled_from([
-        SeqTup('AAAT', 0, ('AAA', 'AAT')),
-        SeqTup('ATCC', 1, ('ATC', 'GGA')),
-        SeqTup('CCCG', 2, ('CCC', 'CCG')),
+        SeqTup('AAAT', ('AAA', 'AAT')),
+        SeqTup('ATCC', ('ATC', 'GGA')),
+        SeqTup('CCCG', ('CCC', 'CCG')),
     ]),
     min_size=1,
     max_size=3))
@@ -28,11 +28,11 @@ def test_decompose(tmpdir, seqs):
     graph = b.build(tmpdir)
 
     out_dir = tmpdir / 'abeona_output'
-    graphs = [out_dir / f'g{i}.ctx' for i in range(len(seqs))]
+    graphs = [out_dir / f'g{i}.traverse.pickle' for i in range(len(seqs))]
 
     # when
     abeona.__main__.main(['subgraphs', str(graph), str(out_dir)])
-    expect = Graphs(graphs)
+    expect = Traversals(graphs)
 
     # then
     for seq in seqs:
@@ -44,9 +44,9 @@ def test_allows_initial_kmer_not_in_seqs(tmpdir):
     # given
     b = builder.Mccortex(mccortex_bin='mccortex')
     seqs = [
-        SeqTup('AAAT', 0, ('AAA', 'AAT')),
-        SeqTup('ATCC', 1, ('ATC', 'GGA')),
-        SeqTup('CCCG', 2, ('CCC', 'CCG')),
+        SeqTup('AAAT', ('AAA', 'AAT')),
+        SeqTup('ATCC', ('ATC', 'GGA')),
+        SeqTup('CCCG', ('CCC', 'CCG')),
     ]
     for seq in seqs:
         b.with_dna_sequence(seq.seq)
@@ -56,13 +56,12 @@ def test_allows_initial_kmer_not_in_seqs(tmpdir):
     SeqIO.write([SeqRecord(Seq('AAAC'), id='initial_contig')], str(initial_contigs), 'fasta')
 
     out_dir = tmpdir / 'abeona_output'
-    graphs = [out_dir / f'g{i}.ctx' for i in range(len(seqs))]
+    graphs = [out_dir / f'g{i}.traverse.pickle' for i in range(len(seqs))]
 
     # when
     abeona.__main__.main(f'subgraphs {graph} {out_dir} --initial-contigs {initial_contigs}'.split())
-    expect = Graphs([graphs[0]])
+    expect = Traversals([graphs[0]])
 
     # then
     expect.has_graph_with_kmers(*seqs[0].kmers)
     expect.has_n_graphs(1)
-    Graph(graphs[0]).has_kmer_strings(*seqs[0].kmers)

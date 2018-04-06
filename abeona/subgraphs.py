@@ -1,8 +1,11 @@
+import collections
+
 import attr
 from pathlib import Path
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from cortexpy.graph import traversal
 from cortexpy.graph.parser import RandomAccess
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream
 import logging
@@ -48,11 +51,12 @@ class MccortexRunner(object):
         shutil.move(tmp_out, out)
 
 
-def remove_subgraph_kmers_from_set(graph, kmer_set):
+def remove_subgraph_kmers_from_dict(graph, kmer_dict):
     """Reads kmer strings from graph and removes the strings from dict in place"""
     with open(graph, 'rb') as fh:
         for kmer in kmer_string_generator_from_stream(fh):
-            kmer_set.discard(kmer)
+            if kmer in kmer_dict:
+                del kmer_dict[kmer]
 
 
 def main(argv):
@@ -68,6 +72,9 @@ def main(argv):
 
     args = parser.parse_args(args=argv)
 
+    from cortexpy.utils import lexlo
+    import networkx as nx
+
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
 
@@ -76,7 +83,6 @@ def main(argv):
         raise Exception(f'Input cortex graph ({input_graph}) does not exist')
 
     if args.initial_contigs:
-        from cortexpy.utils import lexlo
         logger.info('Subsetting graph kmer strings on initial-contig kmers')
         initial_kmers = set()
         with open(input_graph, 'rb') as fh:
@@ -88,29 +94,39 @@ def main(argv):
                     initial_kmers.add(str(lexlo(rec.seq[start_idx:start_idx + kmer_size])))
             logger.info(f'Loaded {len(initial_kmers)} initial kmers')
             ra = RandomAccess(fh)
-            unseen_kmer_strings = set(sorted(kmer for kmer in initial_kmers if kmer in ra))
+            unseen_kmer_strings = collections.OrderedDict.fromkeys(
+                sorted(kmer for kmer in initial_kmers if kmer in ra))
         logger.info(f'Keeping {len(unseen_kmer_strings)} out of {len(initial_kmers)} initial kmers')
     else:
         logger.info('Loading graph kmer strings')
         with open(input_graph, 'rb') as fh:
-            unseen_kmer_strings = set(kmer_string_generator_from_stream(fh))
+            unseen_kmer_strings = collections.OrderedDict.fromkeys(
+                kmer_string_generator_from_stream(fh))
         logger.info(f'Completed loading {len(unseen_kmer_strings)} kmers')
 
     logger.info(f'Building subgraphs from {len(unseen_kmer_strings)} initial kmers')
-    runner = MccortexRunner(dist=len(unseen_kmer_strings),
-                            mem=args.memory,
-                            threads=args.cores)
     graph_idx = 0
-    while len(unseen_kmer_strings) != 0:
-        graph_id = f'g{graph_idx}'
-        logger.info(f'Building graph {graph_idx}. Remaining kmers: {len(unseen_kmer_strings)}')
+    with open(input_graph, 'rb') as fh:
+        ra_parser = RandomAccess(fh)
+        while len(unseen_kmer_strings) != 0:
+            graph_id = f'g{graph_idx}'
+            subgraph_path = out_dir / f'{graph_id}.traverse.pickle'
+            logger.info(f'Remaining kmers: {len(unseen_kmer_strings)}')
+            logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
 
-        initial_kmer_string = next(iter(unseen_kmer_strings))
-        subgraph_path = out_dir / f'{graph_id}.ctx'
-
-        runner.build_subgraph(input=input_graph,
-                              out=subgraph_path,
-                              initial_kmer=initial_kmer_string,
-                              graph_id=graph_id)
-        remove_subgraph_kmers_from_set(graph=subgraph_path, kmer_set=unseen_kmer_strings)
-        graph_idx += 1
+            initial_kmer_string = next(iter(unseen_kmer_strings.keys()))
+            engine = traversal.Engine(
+                ra_parser,
+                orientation=traversal.constants.EngineTraversalOrientation.both,
+                max_nodes=None,
+                logging_interval=90
+            )
+            engine.traverse_from(initial_kmer_string)
+            with open(subgraph_path, 'wb') as out_fh:
+                nx.write_gpickle(engine.graph, out_fh)
+            for node in engine.graph:
+                node = lexlo(node)
+                if node in unseen_kmer_strings.keys():
+                    del unseen_kmer_strings[node]
+            graph_idx += 1
+    logger.info('No kmers remaining')

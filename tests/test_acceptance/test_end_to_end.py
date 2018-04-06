@@ -8,12 +8,10 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from cortexpy.test.expectation import KmerGraphExpectation
+from cortexpy.utils import lexlo
 
 import abeona.__main__
-from cortexpy.graph.parser.streaming import (
-    kmer_list_generator_from_stream,
-    kmer_string_generator_from_stream,
-)
+from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream
 
 
 def get_graph_stream_iterator(file_handle):
@@ -30,14 +28,16 @@ class AbeonaExpectation(object):
     out_graph = attr.ib(init=False)
     out_clean = attr.ib(init=False)
     subgraphs = attr.ib(init=False)
+    traversal_dir = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
         self.out_graph = self.out_dir / 'cortex_graph' / 'full.ctx'
         self.out_clean = self.out_graph.with_suffix('.clean.ctx')
-        self.subgraphs = [self.out_dir / 'cortex_subgraphs' / f'g{i}.ctx'
+        self.traversal_dir = self.out_dir / 'traversals'
+        self.subgraphs = [self.traversal_dir / f'g{i}.traverse.pickle'
                           for i, _ in
-                          enumerate((self.out_dir / 'cortex_subgraphs').glob(f'g*.ctx'))]
+                          enumerate(self.traversal_dir.glob(f'g*.traverse.pickle'))]
 
     def has_subgraph(self, sg_id):
         return AbeonaSubgraphExpectation(self.out_dir, sg_id)
@@ -47,7 +47,7 @@ class AbeonaExpectation(object):
         assert len(kmers) > 0
         for sg_id, sg in enumerate(self.subgraphs):
             with open(sg, 'rb') as fh:
-                subgraph_kmers = set(kmer_string_generator_from_stream(fh))
+                subgraph_kmers = set(lexlo(n) for n in nx.read_gpickle(fh))
             if len(kmers & subgraph_kmers) > 0:
                 assert kmers == subgraph_kmers
                 return AbeonaSubgraphExpectation(self.out_dir, sg_id)
@@ -55,18 +55,18 @@ class AbeonaExpectation(object):
         return self
 
     def has_n_subgraphs(self, n):
-        assert n == len(list((Path(self.out_dir) / 'cortex_subgraphs').glob('g*.ctx')))
+        assert n == len(self.subgraphs)
         return self
 
     def has_out_graph_with_kmers(self, *kmers):
         with open(self.out_graph, 'rb') as fh:
-            output_kmers = [''.join(k) for k in kmer_list_generator_from_stream(fh)]
+            output_kmers = list(kmer_string_generator_from_stream(fh))
         assert set(kmers) == set(output_kmers)
         return self
 
     def has_out_clean_graph_with_kmers(self, *kmers):
         with open(self.out_clean, 'rb') as fh:
-            output_kmers = [''.join(k) for k in kmer_list_generator_from_stream(fh)]
+            output_kmers = list(kmer_string_generator_from_stream(fh))
         assert set(kmers) == set(output_kmers)
         return self
 
@@ -79,8 +79,7 @@ class AbeonaSubgraphExpectation(object):
     def has_cortex_graph_with_kmers(self, *kmers):
         subgraph = self.out_dir / 'cortex_subgraphs' / f'g{self.sg_id}.ctx'
         assert subgraph.is_file()
-        output_kmers = [''.join(k) for k in
-                        kmer_list_generator_from_stream(open(subgraph, 'rb'))]
+        output_kmers = list(kmer_string_generator_from_stream(open(subgraph, 'rb')))
         assert set(kmers) == set(output_kmers)
         return self
 
@@ -139,18 +138,18 @@ def traverses_three_subgraphs_into_two_transcripts(tmpdir):
 
     # then
     with open(out_graph, 'rb') as fh:
-        output_kmers = [''.join(k) for k in kmer_list_generator_from_stream(fh)]
+        output_kmers = list(kmer_string_generator_from_stream(fh))
     assert {'AAA', 'AAT', 'ATC', 'GGA', 'CCC', 'CCG'} == set(output_kmers)
 
     with open(out_clean, 'rb') as fh:
-        output_kmers = [''.join(k) for k in kmer_list_generator_from_stream(fh)]
+        output_kmers = list(kmer_string_generator_from_stream(fh))
     assert {'AAA', 'AAT', 'ATC', 'GGA'} == set(output_kmers)
 
     # cortex subgraphs
     for sg_id in range(2):
         subgraph = out_dir / 'cortex_subgraphs' / f'g{sg_id}.ctx'
         assert subgraph.is_file()
-        output_kmers = [''.join(k) for k in kmer_list_generator_from_stream(open(subgraph, 'rb'))]
+        output_kmers = list(kmer_string_generator_from_stream(open(subgraph, 'rb')))
         assert expected_kmers[sg_id] == set(output_kmers)
 
     # traversals

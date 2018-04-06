@@ -3,6 +3,8 @@ import networkx as nx
 from cortexpy.graph.parser import RandomAccess
 from cortexpy.graph.parser.streaming import kmer_list_generator_from_stream
 from cortexpy.graph.traversal import Engine
+from cortexpy.test.expectation import KmerGraphExpectation
+from cortexpy.utils import lexlo
 
 
 @attr.s(slots=True)
@@ -46,4 +48,25 @@ class Graphs(object):
 
     def has_n_graphs(self, n):
         assert n == len(self.graph_expectations)
+        return self
+
+
+@attr.s(slots=True)
+class Traversals(object):
+    traversals = attr.ib()
+    traversal_expectations = attr.ib(init=False)
+
+    def __attrs_post_init__(self):
+        self.traversal_expectations = [
+            KmerGraphExpectation(nx.read_gpickle(open(graph, 'rb'))) for graph in self.traversals]
+
+    def has_graph_with_kmers(self, *kmers):
+        kmers = set(kmers)
+        for expect in self.traversal_expectations:
+            if kmers == set(lexlo(kmer_string) for kmer_string in expect.graph):
+                return expect
+        assert False
+
+    def has_n_graphs(self, n):
+        assert n == len(self.traversal_expectations)
         return self

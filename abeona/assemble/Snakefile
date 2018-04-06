@@ -10,8 +10,6 @@ logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
 
-import cortexpy.graph.parser.streaming
-
 with open('args.json') as fh:
     ARGS = json.load(fh)
 
@@ -63,24 +61,16 @@ rule pruned_cortex_graph:
               f' -T0 -U{ARGS["min_unitig_coverage"]}'
               f' --out {output} {input}')
 
-rule subgraph_cortex_graph:
+rule traverse_cortex_subgraph:
     input: 'cortex_graph/full.clean.ctx'
-    output: dynamic('cortex_subgraphs/g{sg_id}.ctx')
+    output: dynamic('traversals/g{sg_id}.traverse.pickle')
     threads: 16
     run:
-        out_dir = 'cortex_subgraphs'
+        out_dir = Path(output[0]).parent
         cmd = f'python -m abeona subgraphs {input} {out_dir} -m {ARGS["memory"]} -c {threads}'
         if ARGS['initial_contigs'] is not None:
             cmd += f' --initial-contigs {ARGS["initial_contigs"]}'
         shell(cmd)
-
-rule traverse_subgraphs:
-    input: 'cortex_subgraphs/g{sg_id}.ctx'
-    output: 'traversals/g{sg_id}.traverse.pickle'
-    run:
-        with open(str(input), 'rb') as fh:
-            first_kmer = next(cortexpy.graph.parser.streaming.kmer_string_generator_from_stream(fh))
-        shell(f'cortexpy traverse --graph {input} --out {output} {first_kmer}')
 
 rule pruned_subgraphs:
     input:  'traversals/g{sg_id}.traverse.pickle',

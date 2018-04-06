@@ -7,7 +7,7 @@ name = "pypi"
 
 [packages]
 
-cortexpy = "*"
+cortexpy = ">=0.23.5"
 snakemake = "*"
 pandas = "*"
 
