@@ -10,6 +10,7 @@ name = "pypi"
 cortexpy = ">=0.23.5"
 snakemake = "*"
 pandas = "*"
+pytest-profiling = "*"
 
 
 [dev-packages]
@@ -26,3 +27,4 @@ wheel = "*"
 pytest-benchmark = "*"
 coverage = ">=4.5"
 "pytest-pep8" = "*"
+pytest-profiling = "*"

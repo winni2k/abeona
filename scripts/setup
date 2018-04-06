@@ -13,12 +13,10 @@ $MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k $KMER_SIZE --sample yea
     --seq $FIXTURE_DIR/NC_001133.9.fa \
     $FIXTURE_DIR/NC_001133.9.ctx
 
-awk '{print substr($0, 1, 1000)}' < $FIXTURE_DIR/NC_001133.9.fa > $FIXTURE_DIR/NC_001133.9.1kbp.fa
-$MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k $KMER_SIZE --sample yeast.chrom \
-    --seq $FIXTURE_DIR/NC_001133.9.1kbp.fa \
-    $FIXTURE_DIR/NC_001133.9.1kbp.ctx
-
-awk '{print substr($0, 1, 4000)}' < $FIXTURE_DIR/NC_001133.9.fa > $FIXTURE_DIR/NC_001133.9.4kbp.fa
-$MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k $KMER_SIZE --sample yeast.chrom \
-    --seq $FIXTURE_DIR/NC_001133.9.4kbp.fa \
-    $FIXTURE_DIR/NC_001133.9.4kbp.ctx
+for SIZE in 1 2 4 8; do
+    awk "{print substr(\$0, 1, $SIZE * 1000)}" < $FIXTURE_DIR/NC_001133.9.fa > $FIXTURE_DIR/NC_001133.9.${SIZE}kbp.fa
+$MCCORTEX $KMER_SIZE build --force --sort --memory 2G -k 47 --sample yeast.chrom \
+    --quiet \
+    --seq $FIXTURE_DIR/NC_001133.9.${SIZE}kbp.fa \
+    $FIXTURE_DIR/NC_001133.9.${SIZE}kbp.ctx
+done

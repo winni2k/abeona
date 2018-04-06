@@ -6,6 +6,7 @@ import abeona.subgraphs
 CHROM_GRAPH_230KB = 'fixtures/yeast/NC_001133.9.ctx'
 CHROM_GRAPH_1KB = 'fixtures/yeast/NC_001133.9.1kbp.ctx'
 CHROM_GRAPH_4KB = 'fixtures/yeast/NC_001133.9.4kbp.ctx'
+CHROM_GRAPH_8KB = 'fixtures/yeast/NC_001133.9.8kbp.ctx'
 
 
 def run_abeona_subgraphs(graph, out_dir):
@@ -13,11 +14,8 @@ def run_abeona_subgraphs(graph, out_dir):
     abeona.subgraphs.main(cmd)
 
 
-GRAPHS = {
-    '230k': CHROM_GRAPH_230KB,
-    '1kb': CHROM_GRAPH_1KB,
-    '4kb': CHROM_GRAPH_4KB
-}
+GRAPHS = {str(kbp) + 'kb': 'fixtures/yeast/NC_001133.9.{}kbp.ctx'.format(kbp) for kbp in
+          [1, 2, 4, 8]}
 
 FUNCS = {
     'subgraphs': run_abeona_subgraphs
@@ -29,4 +27,4 @@ FUNCS = {
 def test_yeast(benchmark, tmpdir, graph_size, func_type):
     graph = GRAPHS[graph_size]
     func = FUNCS[func_type]
-    benchmark(func, graph, tmpdir)
+    benchmark.pedantic(func, args=(graph, tmpdir), iterations=2, warmup_rounds=1)
