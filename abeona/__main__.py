@@ -33,8 +33,20 @@ def assemble_main(argv):
 
 
 def subgraphs_main(argv):
+    import argparse
+    parser = argparse.ArgumentParser(description='Partition cortex graph into its subgraphs.',
+                                     prog='abeona subgraphs')
+    parser.add_argument('graph')
+    parser.add_argument('out_dir')
+    parser.add_argument('-m', '--memory', type=int, default=3)
+    parser.add_argument('-c', '--cores', type=int, default=2)
+    parser.add_argument('--initial-contigs', help='Only start assembly from contigs in this FASTA',
+                        required=False)
+
+    args = parser.parse_args(args=argv)
+
     from .subgraphs import main
-    return main(argv)
+    return main(args)
 
 
 if __name__ == '__main__':
