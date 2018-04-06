@@ -75,10 +75,10 @@ def main(args):
                     logging_interval=90
                 )
                 engine.traverse_from(initial_kmer_string)
-                logger.info(f'Found subgraph with {len(engine.graph)} kmers')
                 with open(subgraph_path, 'wb') as out_fh:
                     nx.write_gpickle(engine.graph, out_fh)
                 for node in engine.graph:
                     kmer_strings.add_seen(lexlo(node))
+                logger.info(f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra_parser) - len(kmer_strings.seen)} kmers left')
                 graph_idx += 1
     logger.info('No kmers remaining')
