@@ -1,6 +1,5 @@
 import attr
 import networkx as nx
-import collections
 from pathlib import Path
 from Bio import SeqIO
 from cortexpy.graph import traversal
@@ -23,7 +22,7 @@ def load_initial_kmers(input_graph_fh, initial_contigs):
         for start_idx in range(len(rec.seq) - kmer_size + 1):
             initial_kmers.add(str(lexlo(rec.seq[start_idx:start_idx + kmer_size])))
     logger.info(f'Loaded {len(initial_kmers)} initial kmers')
-    ra = RandomAccess(input_graph_fh)
+    ra = RandomAccess(input_graph_fh, kmer_cache_size=0, kmer_cache_size_binary_search=0)
     kmer_strings = KmerStringTracker(
         unseen_generator=sorted(kmer for kmer in initial_kmers if kmer in ra))
     logger.info(
@@ -61,7 +60,9 @@ def main(args):
                 unseen_generator=kmer_string_generator_from_stream(first_input_graph_fh))
         graph_idx = 0
         with open(input_graph, 'rb') as fh:
-            ra_parser = RandomAccess(fh)
+            ra_parser = RandomAccess(fh,
+                                     kmer_cache_size=0,
+                                     kmer_cache_size_binary_search=0)
             for initial_kmer_string in kmer_strings.strings_not_seen():
                 graph_id = f'g{graph_idx}'
                 subgraph_path = out_dir / f'{graph_id}.traverse.pickle'
@@ -79,6 +80,7 @@ def main(args):
                     nx.write_gpickle(engine.graph, out_fh)
                 for node in engine.graph:
                     kmer_strings.add_seen(lexlo(node))
-                logger.info(f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra_parser) - len(kmer_strings.seen)} kmers left')
+                logger.info(
+                    f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra_parser) - len(kmer_strings.seen)} kmers left')
                 graph_idx += 1
     logger.info('No kmers remaining')

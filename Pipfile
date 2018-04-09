@@ -1,20 +1,15 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [packages]
-
-cortexpy = ">=0.23.5"
+cortexpy = "0.25.1"
 snakemake = "*"
 pandas = "*"
 pytest-profiling = "*"
 
-
 [dev-packages]
-
 bitstring = "*"
 hypothesis = "*"
 pytest = "*"
