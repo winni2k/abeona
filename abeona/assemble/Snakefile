@@ -63,7 +63,7 @@ rule pruned_cortex_graph:
 
 rule traverse_cortex_subgraph:
     input: 'cortex_graph/full.clean.ctx'
-    output: dynamic('traversals/g{sg_id}.traverse.pickle')
+    output: dynamic('traversals/g{sg_id}.traverse.ctx')
     threads: 16
     run:
         out_dir = Path(output[0]).parent
@@ -73,13 +73,13 @@ rule traverse_cortex_subgraph:
         shell(cmd)
 
 rule pruned_subgraphs:
-    input:  'traversals/g{sg_id}.traverse.pickle',
-    output:  'pruned_traversals/g{sg_id}.traverse.pickle'
+    input:  'traversals/g{sg_id}.traverse.ctx',
+    output:  'pruned_traversals/g{sg_id}.traverse.ctx'
     run:
         shell(f'cortexpy prune --out {output} {input} --remove-tips {ARGS["min_tip_length"]}')
 
 rule candidate_transcripts:
-    input: 'pruned_traversals/g{sg_id}.traverse.pickle'
+    input: 'pruned_traversals/g{sg_id}.traverse.ctx'
     output: 'candidate_transcripts/g{sg_id}.transcripts.fa.gz'
     run:
         output_tmp = str(output) + '.tmp'

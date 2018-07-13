@@ -5,6 +5,7 @@ from Bio import SeqIO
 from cortexpy.graph import traversal
 from cortexpy.graph.parser import RandomAccess
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream
+from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
 from cortexpy.utils import lexlo
 import logging
 
@@ -65,8 +66,7 @@ def main(args):
                                      kmer_cache_size_binary_search=0)
             for initial_kmer_string in kmer_strings.strings_not_seen():
                 graph_id = f'g{graph_idx}'
-                subgraph_path = out_dir / f'{graph_id}.traverse.pickle'
-                # logger.info(f'Remaining kmers: {tot_recs}')
+                subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
                 logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
 
                 engine = traversal.Engine(
@@ -75,9 +75,9 @@ def main(args):
                     max_nodes=None,
                     logging_interval=90
                 )
-                engine.traverse_from(initial_kmer_string)
+                engine.traverse_from(str(initial_kmer_string))
                 with open(subgraph_path, 'wb') as out_fh:
-                    nx.write_gpickle(engine.graph, out_fh)
+                    dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
                 for node in engine.graph:
                     kmer_strings.add_seen(lexlo(node))
                 logger.info(
