@@ -61,8 +61,14 @@ rule pruned_cortex_graph:
               f' -T0 -U{ARGS["min_unitig_coverage"]}'
               f' --out {output} {input}')
 
-rule traverse_cortex_subgraph:
+rule prune_cortex_graph_of_tips:
     input: 'cortex_graph/full.clean.ctx'
+    output: f'cortex_graph/full.clean.min_tip_length_{ARGS["min_tip_length"]}.ctx'
+    run:
+        shell(f'cortexpy prune --out {output} {input} --remove-tips {ARGS["min_tip_length"]}')
+
+rule traverse_cortex_subgraph:
+    input: f'cortex_graph/full.clean.min_tip_length_{ARGS["min_tip_length"]}.ctx'
     output: dynamic('traversals/g{sg_id}.traverse.ctx')
     threads: 16
     run:
@@ -72,14 +78,8 @@ rule traverse_cortex_subgraph:
             cmd += f' --initial-contigs {ARGS["initial_contigs"]}'
         shell(cmd)
 
-rule pruned_subgraphs:
-    input:  'traversals/g{sg_id}.traverse.ctx',
-    output:  'pruned_traversals/g{sg_id}.traverse.ctx'
-    run:
-        shell(f'cortexpy prune --out {output} {input} --remove-tips {ARGS["min_tip_length"]}')
-
 rule candidate_transcripts:
-    input: 'pruned_traversals/g{sg_id}.traverse.ctx'
+    input: 'traversals/g{sg_id}.traverse.ctx'
     output: 'candidate_transcripts/g{sg_id}.transcripts.fa.gz'
     run:
         output_tmp = str(output) + '.tmp'

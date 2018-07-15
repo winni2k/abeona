@@ -16,15 +16,19 @@ from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, l
 @attr.s(slots=True)
 class AbeonaExpectation(object):
     out_dir = attr.ib()
+    prune_length = attr.ib(0)
     out_graph = attr.ib(init=False)
     out_clean = attr.ib(init=False)
     subgraphs = attr.ib(init=False)
     traversal_dir = attr.ib(init=False)
+    out_clean_tip_pruned = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
         self.out_graph = self.out_dir / 'cortex_graph' / 'full.ctx'
         self.out_clean = self.out_graph.with_suffix('.clean.ctx')
+        self.out_clean_tip_pruned = self.out_clean.with_suffix(
+            f'.min_tip_length_{self.prune_length}.ctx')
         self.traversal_dir = self.out_dir / 'traversals'
         self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
                           for i, _ in
@@ -57,6 +61,12 @@ class AbeonaExpectation(object):
 
     def has_out_clean_graph_with_kmers(self, *kmers):
         with open(self.out_clean, 'rb') as fh:
+            output_kmers = list(kmer_string_generator_from_stream(fh))
+        assert set(kmers) == set(output_kmers)
+        return self
+
+    def has_out_tip_pruned_graph_with_kmers(self, *kmers):
+        with open(self.out_clean_tip_pruned, 'rb') as fh:
             output_kmers = list(kmer_string_generator_from_stream(fh))
         assert set(kmers) == set(output_kmers)
         return self
@@ -155,7 +165,9 @@ class TestAssemble(object):
 
         expected_sequences = [['AAATG'], ['ATCCC']]
         expected_kmers = [{'AAA', 'AAT', 'AAC', 'ATG'}, {'ATC', 'GGA', 'CCC', 'CGA'}]
+        expected_post_pruning_kmers = [{'AAA', 'AAT', 'ATG'}, {'ATC', 'GGA', 'CCC'}]
         all_expected_kmers = list(itertools.chain(*expected_kmers))
+        all_expected_post_pruned_kmers = list(itertools.chain(*expected_post_pruning_kmers))
 
         out_dir = Path(tmpdir) / 'abeona'
 
@@ -173,13 +185,14 @@ class TestAssemble(object):
                                               '--quiet'])
 
         # then
-        expect = AbeonaExpectation(out_dir)
+        expect = AbeonaExpectation(out_dir, min_tip_length)
         expect.has_out_graph_with_kmers(*all_expected_kmers)
         expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
+        expect.has_out_tip_pruned_graph_with_kmers(*all_expected_post_pruned_kmers)
 
         for sg_id in range(2):
-            sg_expect = expect.has_subgraph_with_kmers(*expected_kmers[sg_id])
-            sg_expect.has_traversal().has_nodes(*expected_kmers[sg_id])
+            sg_expect = expect.has_subgraph_with_kmers(*expected_post_pruning_kmers[sg_id])
+            sg_expect.has_traversal().has_nodes(*expected_post_pruning_kmers[sg_id])
             sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
 
