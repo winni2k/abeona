@@ -58,17 +58,17 @@ rule pruned_cortex_graph:
     run:
         shell(f'{MCCORTEX} clean {MCCORTEX_ARGS}'
               f' --threads {threads}'
-              f' -T0 -U{ARGS["min_unitig_coverage"]}'
+              f' -T{ARGS["min_tip_length"]} -U{ARGS["min_unitig_coverage"]}'
               f' --out {output} {input}')
 
-rule prune_cortex_graph_of_tips:
-    input: 'cortex_graph/full.clean.ctx'
-    output: f'cortex_graph/full.clean.min_tip_length_{ARGS["min_tip_length"]}.ctx'
-    run:
-        shell(f'cortexpy prune --out {output} {input} --remove-tips {ARGS["min_tip_length"]}')
+# rule prune_cortex_graph_of_tips:
+#     input: 'cortex_graph/full.clean.ctx'
+#     output: f'cortex_graph/full.clean.min_tip_length_{ARGS["min_tip_length"]}.ctx'
+#     run:
+#         shell(f'mccortex prune --out {output} {input} --remove-tips {ARGS["min_tip_length"]}')
 
 rule traverse_cortex_subgraph:
-    input: f'cortex_graph/full.clean.min_tip_length_{ARGS["min_tip_length"]}.ctx'
+    input: f'cortex_graph/full.clean.ctx'
     output: dynamic('traversals/g{sg_id}.traverse.ctx')
     threads: 16
     run:

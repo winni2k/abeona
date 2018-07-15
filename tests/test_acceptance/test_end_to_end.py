@@ -65,12 +65,6 @@ class AbeonaExpectation(object):
         assert set(kmers) == set(output_kmers)
         return self
 
-    def has_out_tip_pruned_graph_with_kmers(self, *kmers):
-        with open(self.out_clean_tip_pruned, 'rb') as fh:
-            output_kmers = list(kmer_string_generator_from_stream(fh))
-        assert set(kmers) == set(output_kmers)
-        return self
-
 
 @attr.s(slots=True)
 class AbeonaSubgraphExpectation(object):
@@ -187,8 +181,7 @@ class TestAssemble(object):
         # then
         expect = AbeonaExpectation(out_dir, min_tip_length)
         expect.has_out_graph_with_kmers(*all_expected_kmers)
-        expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
-        expect.has_out_tip_pruned_graph_with_kmers(*all_expected_post_pruned_kmers)
+        expect.has_out_clean_graph_with_kmers(*all_expected_post_pruned_kmers)
 
         for sg_id in range(2):
             sg_expect = expect.has_subgraph_with_kmers(*expected_post_pruning_kmers[sg_id])
