@@ -1,7 +1,7 @@
 import attr
 import networkx as nx
 from cortexpy.graph.parser import RandomAccess
-from cortexpy.graph.parser.streaming import kmer_list_generator_from_stream, load_de_bruijn_graph
+from cortexpy.graph.parser.streaming import kmer_list_generator_from_stream, load_cortex_graph
 from cortexpy.graph.traversal import Engine
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
@@ -58,7 +58,7 @@ class Traversals(object):
 
     def __attrs_post_init__(self):
         self.traversal_expectations = [
-            KmerGraphExpectation(load_de_bruijn_graph(open(graph, 'rb'))) for graph in
+            KmerGraphExpectation(load_cortex_graph(open(graph, 'rb'))) for graph in
             self.traversals
         ]
 

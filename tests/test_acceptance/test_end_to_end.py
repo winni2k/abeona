@@ -10,7 +10,7 @@ from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
 
 import abeona.__main__
-from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_de_bruijn_graph
+from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
 
 
 @attr.s(slots=True)
@@ -42,7 +42,7 @@ class AbeonaExpectation(object):
         assert len(kmers) > 0
         for sg_id, sg in enumerate(self.subgraphs):
             with open(sg, 'rb') as fh:
-                subgraph_kmers = set(lexlo(n) for n in load_de_bruijn_graph(fh))
+                subgraph_kmers = set(lexlo(n) for n in load_cortex_graph(fh))
             if len(kmers & subgraph_kmers) > 0:
                 assert kmers == subgraph_kmers
                 return AbeonaSubgraphExpectation(self.out_dir, sg_id)
@@ -81,7 +81,7 @@ class AbeonaSubgraphExpectation(object):
     def has_traversal(self):
         subgraph = self.out_dir / 'traversals' / f'g{self.sg_id}.traverse.ctx'
         assert subgraph.is_file()
-        graph = load_de_bruijn_graph(open(subgraph, 'rb'))
+        graph = load_cortex_graph(open(subgraph, 'rb'))
         return KmerGraphExpectation(graph)
 
     def _has_seqs(self, *expected_seq_strings, dir_name):

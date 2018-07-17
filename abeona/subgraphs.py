@@ -13,34 +13,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('abeona.subgraphs')
 
 
-def load_initial_kmers(input_graph_fh, initial_contigs):
+def load_initial_kmers(random_access, initial_contigs):
     logger.info('Subsetting graph kmer strings on initial-contig kmers')
     initial_kmers = set()
-    first_kmer = next(kmer_string_generator_from_stream(input_graph_fh))
+    first_kmer = next(iter(random_access))
     for rec in SeqIO.parse(initial_contigs, 'fasta'):
         kmer_size = len(first_kmer)
         assert len(rec.seq) >= kmer_size
         for start_idx in range(len(rec.seq) - kmer_size + 1):
             initial_kmers.add(str(lexlo(rec.seq[start_idx:start_idx + kmer_size])))
     logger.info(f'Loaded {len(initial_kmers)} initial kmers')
-    ra = RandomAccess(input_graph_fh, kmer_cache_size=0, kmer_cache_size_binary_search=0)
-    kmer_strings = KmerStringTracker(
-        unseen_generator=sorted(kmer for kmer in initial_kmers if kmer in ra))
+    k_string_tracker = KmerStringTracker(
+        unseen=sorted(kmer for kmer in initial_kmers if kmer in random_access))
     logger.info(
-        f'Keeping {len(kmer_strings.unseen_generator)} out of {len(initial_kmers)} initial kmers')
-    return kmer_strings
+        f'Keeping {len(k_string_tracker.unseen)} out of {len(initial_kmers)} initial kmers')
+    return k_string_tracker
 
 
 @attr.s(slots=True)
 class KmerStringTracker(object):
-    unseen_generator = attr.ib(attr.Factory(list))
+    unseen = attr.ib(attr.Factory(list))
     seen = attr.ib(attr.Factory(set))
 
     def add_seen(self, string):
         self.seen.add(string)
 
     def strings_not_seen(self):
-        for string in self.unseen_generator:
+        for string in self.unseen:
             if string not in self.seen:
                 yield string
 
@@ -54,17 +53,15 @@ def main(args):
         raise Exception(f'Input cortex graph ({input_graph}) does not exist')
 
     with open(input_graph, 'rb') as first_input_graph_fh:
+        ra = RandomAccess(first_input_graph_fh, kmer_cache_size=0)
         if args.initial_contigs:
-            kmer_strings = load_initial_kmers(first_input_graph_fh, args.initial_contigs)
+            kstring_tracker = load_initial_kmers(ra, args.initial_contigs)
         else:
-            kmer_strings = KmerStringTracker(
-                unseen_generator=kmer_string_generator_from_stream(first_input_graph_fh))
+            kstring_tracker = KmerStringTracker(unseen=ra)
         graph_idx = 0
         with open(input_graph, 'rb') as fh:
-            ra_parser = RandomAccess(fh,
-                                     kmer_cache_size=0,
-                                     kmer_cache_size_binary_search=0)
-            for initial_kmer_string in kmer_strings.strings_not_seen():
+            ra_parser = RandomAccess(fh, kmer_cache_size=0)
+            for initial_kmer_string in kstring_tracker.strings_not_seen():
                 graph_id = f'g{graph_idx}'
                 subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
                 logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
@@ -75,12 +72,13 @@ def main(args):
                     max_nodes=None,
                     logging_interval=90
                 )
+                print(type(initial_kmer_string), initial_kmer_string)
                 engine.traverse_from(str(initial_kmer_string))
                 with open(subgraph_path, 'wb') as out_fh:
                     dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
                 for node in engine.graph:
-                    kmer_strings.add_seen(lexlo(node))
+                    kstring_tracker.add_seen(lexlo(node))
                 logger.info(
-                    f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra_parser) - len(kmer_strings.seen)} kmers left')
+                    f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra_parser) - len(kstring_tracker.seen)} kmers left')
                 graph_idx += 1
     logger.info('No kmers remaining')
