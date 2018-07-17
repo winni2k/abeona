@@ -72,7 +72,6 @@ def main(args):
                     max_nodes=None,
                     logging_interval=90
                 )
-                print(type(initial_kmer_string), initial_kmer_string)
                 engine.traverse_from(str(initial_kmer_string))
                 with open(subgraph_path, 'wb') as out_fh:
                     dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
