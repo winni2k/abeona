@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b0bfa087671a6749e7295fa31dc409199a7bab65e0a4ff1b6e46ba987b84bef0"
+            "sha256": "02736d1e3e2a81883fff53d264306eb3e594eca554da30ad2b513deacf6c0f7b"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -85,11 +85,11 @@
         },
         "cortexpy": {
             "hashes": [
-                "sha256:9f0a34495fffc03f5c5db989a76e63e676a9c799ce411be7d01c7ff90aa23439",
-                "sha256:e793e7d6e5611868e1dd2b00af6acedc0e7803a2f5242ae1d3a176897c452e14"
+                "sha256:268cf69701aac77fd50041249bfdcc73876bf01aac6e4f2223d23a948fa9ef9c",
+                "sha256:e49bffafc14bd02a6b1764f5ad51fea465c2066ca88a56dfa9486afaf5be2379"
             ],
             "index": "pypi",
-            "version": "==0.27.3"
+            "version": "==0.28.3"
         },
         "datrie": {
             "hashes": [
@@ -367,10 +367,10 @@
         },
         "astroid": {
             "hashes": [
-                "sha256:8704779744963d56a2625ec2949eb150bd499fc099510161ddbb2b64e2d98138",
-                "sha256:add3fd690e7c1fe92436d17be461feeaa173e6f33e0789734310334da0f30027"
+                "sha256:0a0c484279a5f08c9bcedd6fa9b42e378866a7dcc695206b92d59dc9f2d9760d",
+                "sha256:218e36cf8d98a42f16214e8670819ce307fa707d1dcf7f9af84c7aede1febc7f"
             ],
-            "version": "==2.0"
+            "version": "==2.0.1"
         },
         "atomicwrites": {
             "hashes": [

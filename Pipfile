@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-cortexpy = "==0.27.3"
+cortexpy = "==0.28.3"
 snakemake = "*"
 pandas = "*"
 pytest-profiling = "*"
