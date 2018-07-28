@@ -4,22 +4,21 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-cortexpy = "==0.28.4"
+cortexpy = "==0.29.2"
 snakemake = "*"
 pandas = "*"
-pytest-profiling = "*"
 
 [dev-packages]
 bitstring = "*"
 hypothesis = "*"
 pytest = "*"
 pytest-cov = "*"
-"pytest-flake8" = "*"
+pytest-pep8 = "*"
+pytest-profiling = "*"
+pytest-flake8 = "*"
 pytest-pylint = "*"
 sphinx = "*"
 twine = "*"
 wheel = "*"
 pytest-benchmark = "*"
 coverage = ">=4.5"
-"pytest-pep8" = "*"
-pytest-profiling = "*"

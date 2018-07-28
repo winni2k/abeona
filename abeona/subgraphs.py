@@ -4,7 +4,6 @@ from pathlib import Path
 from Bio import SeqIO
 from cortexpy.graph import traversal
 from cortexpy.graph.parser import RandomAccess
-from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream
 from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
 from cortexpy.utils import lexlo
 import logging
