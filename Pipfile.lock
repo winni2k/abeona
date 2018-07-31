@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f176387aaded426d0a16364d69229aaac113fb1495dc17a51724d7dbd7320b6c"
+            "sha256": "ff84cab0aeea67ead8ccbb0b0d25d600da01e9bae650a9f7a704d18c495d80dc"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -14,6 +14,10 @@
         ]
     },
     "default": {
+        "abeona": {
+            "editable": true,
+            "path": "."
+        },
         "appdirs": {
             "hashes": [
                 "sha256:9e5896d1372858f8dd3344faf4e5014d21849c756c8d5701f78f8a103b372d92",
@@ -86,11 +90,10 @@
         },
         "cortexpy": {
             "hashes": [
-                "sha256:198b939d0cd20c1436d2103e987831b63c4c42676b6a06d87c243956a43be571",
-                "sha256:bb426da594a11355d0ff5032d6ae35f8513c7a558d59d96db905fa26a229abf5"
+                "sha256:7e5023bf9228089898035d3052b9141fb985127fe3e1f6ab1900635204ae1e77"
             ],
             "index": "pypi",
-            "version": "==0.31.0"
+            "version": "==0.31.1"
         },
         "datrie": {
             "hashes": [

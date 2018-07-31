@@ -4,10 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-cortexpy = ">=0.31.1"
+cortexpy = "==0.31.1"
 snakemake = "*"
 pandas = "*"
 pytest = "*"
+abeona = {editable = true, path = "."}
 
 [dev-packages]
 bitstring = "*"
