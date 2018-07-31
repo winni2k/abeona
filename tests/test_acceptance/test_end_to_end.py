@@ -9,7 +9,7 @@ from Bio.SeqRecord import SeqRecord
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
 
-import abeona.__main__
+from abeona.__main__ import main as abeona_main
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
 
 
@@ -122,7 +122,7 @@ class TestAssemble(object):
         out_dir = Path(tmpdir) / 'abeona'
 
         # when
-        abeona.__main__.main(str(c) for c in ['assemble',
+        abeona_main(str(c) for c in ['assemble',
                                               '--fastx-single', input_fastq,
                                               '--kallisto-fastx-single', input_fastq,
                                               '--kallisto-fragment-length', 3,
@@ -166,7 +166,7 @@ class TestAssemble(object):
         out_dir = Path(tmpdir) / 'abeona'
 
         # when
-        abeona.__main__.main(str(c) for c in ['assemble',
+        abeona_main(str(c) for c in ['assemble',
                                               '--fastx-single', input_fastq,
                                               '--kallisto-fastx-single', input_fastq,
                                               '--kallisto-fragment-length', 3,
@@ -211,7 +211,7 @@ class TestAssemble(object):
         out_dir = Path(tmpdir) / 'abeona'
 
         # when
-        abeona.__main__.main(str(c) for c in ['assemble',
+        abeona_main(str(c) for c in ['assemble',
                                               '--fastx-single', input_fastq,
                                               '--kallisto-fastx-single', input_fastq,
                                               '--kallisto-fragment-length', 3,
@@ -264,7 +264,7 @@ class TestInitialSeqsFasta(object):
         out_dir = Path(tmpdir) / 'abeona'
 
         # when
-        abeona.__main__.main(str(c) for c in ['assemble',
+        abeona_main(str(c) for c in ['assemble',
                                               '--initial-contigs', inital_contigs_fasta,
                                               '--fastx-single', input_fastq,
                                               '--kallisto-fastx-single', input_fastq,

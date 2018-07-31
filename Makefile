@@ -3,7 +3,7 @@ PYTHON = $(ENV) python
 PYTEST = $(ENV) pytest
 
 test:
-	$(PYTEST) --flake8 --cov abeona tests
+	$(PYTEST) --cov abeona tests
 
 setup:
 	scripts/setup

@@ -1,10 +1,11 @@
 import attr
-import networkx as nx
 from pathlib import Path
 from Bio import SeqIO
+from cortexpy.constants import EngineTraversalOrientation
 from cortexpy.graph import traversal
-from cortexpy.graph.parser import RandomAccess
+from cortexpy.graph.parser.random_access import RandomAccess
 from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
+from cortexpy.graph.traversal.engine import Engine
 from cortexpy.utils import lexlo
 import logging
 
@@ -65,9 +66,9 @@ def main(args):
                 subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
                 logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
 
-                engine = traversal.Engine(
+                engine = Engine(
                     ra_parser,
-                    orientation=traversal.constants.EngineTraversalOrientation.both,
+                    orientation=EngineTraversalOrientation.both,
                     max_nodes=None,
                     logging_interval=90
                 )

@@ -1,8 +1,8 @@
 import attr
 import networkx as nx
-from cortexpy.graph.parser import RandomAccess
+import cortexpy.graph.parser.random_access
 from cortexpy.graph.parser.streaming import kmer_list_generator_from_stream, load_cortex_graph
-from cortexpy.graph.traversal import Engine
+from cortexpy.graph.traversal.engine import Engine
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
 
@@ -17,7 +17,7 @@ class Graph(object):
     def __attrs_post_init__(self):
         with open(self.mccortex_graph, 'rb') as fh:
             self.kmer_strings = set([''.join(k) for k in kmer_list_generator_from_stream(fh)])
-            self.traversal = Engine(ra_parser=RandomAccess(fh)) \
+            self.traversal = Engine(ra_parser=cortexpy.graph.parser.RandomAccess(fh)) \
                 .traverse_from_each_kmer_in_iterable(self.kmer_strings) \
                 .graph
 
