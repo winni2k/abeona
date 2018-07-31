@@ -44,7 +44,7 @@ setup(
     },
 
     install_requires="""
-    cortexpy >= 0.31.1
+    cortexpy >= 0.31.3
     snakemake
     pandas
     """.split('\n'),
