@@ -9,7 +9,7 @@ from Bio import SeqIO
 from cortexpy.test import builder
 from hypothesis import given, strategies as strat
 
-from abeona.__main__ import main as abeona_main
+from abeona.cli import main as abeona_main
 from tests.expectation.mccortex import Traversals
 
 SeqTup = collections.namedtuple('SeqTup', ['seq', 'kmers'])
@@ -49,7 +49,8 @@ class SubgraphTestDriver(object):
             SeqIO.write(records, str(initial_contigs), 'fasta')
             command += ['--initial-contigs', initial_contigs]
 
-        abeona_main([str(arg) for arg in command])
+        args = ['abeona'] + [str(arg) for arg in command]
+        abeona_main(args)
 
         graphs = list(Path(out_dir).glob('g*.traverse.ctx'))
 

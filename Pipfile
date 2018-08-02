@@ -3,24 +3,11 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-[packages]
-cortexpy = ">=0.31.3"
-snakemake = "*"
-pandas = "*"
-pytest = "*"
-abeona = {editable = true, path = "."}
-
 [dev-packages]
-bitstring = "*"
-hypothesis = "*"
-pytest = "*"
-pytest-cov = "*"
-pytest-pep8 = "*"
-pytest-profiling = "*"
-pytest-pylint = "*"
 sphinx = "*"
 twine = "*"
 wheel = "*"
 pytest-benchmark = "*"
 coverage = ">=4.5"
 tox = "*"
+bumpversion = "*"

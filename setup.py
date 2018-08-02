@@ -6,20 +6,12 @@ from os.path import splitext, basename
 
 from setuptools import find_packages, setup
 
-with open('src/abeona/__init__.py', 'r') as f:
-    for line in f:
-        if line.startswith('__version__'):
-            version = line.strip().split('=')[1].strip(' \'"')
-            break
-    else:
-        version = '0.0.1'
-
 with open('README.rst', 'r', encoding='utf-8') as f:
     readme = f.read()
 
 setup(
     name='abeona',
-    version=version,
+    version='0.13.7',
     description='',
     long_description=readme,
     author='Warren W. Kretzschmar',
@@ -44,7 +36,7 @@ setup(
     },
 
     install_requires="""
-    cortexpy >= 0.31.3
+    cortexpy >= 0.35.0
     snakemake
     pandas
     """.split('\n'),

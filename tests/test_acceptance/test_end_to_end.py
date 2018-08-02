@@ -2,15 +2,43 @@ import gzip
 import itertools
 from pathlib import Path
 
+import abeona.cli
 import attr
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
 
-from abeona.__main__ import main as abeona_main
-from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
+
+@attr.s(slots=True)
+class AbeonaRunner(object):
+
+    def run(self, *args):
+        argv = ['abeona'] + [str(a) for a in args]
+        abeona.cli.main(argv)
+
+    def assemble(self, *args):
+        argv = ['assemble'] + list(args)
+        return self.run(*argv)
+
+
+@attr.s(slots=True)
+class FastqBuilder(object):
+    out_file = attr.ib()
+    records = attr.ib(attr.Factory(list))
+
+    def with_seq(self, seq_string):
+        idx = len(self.records)
+        self.records.append(SeqRecord(Seq(seq_string), id=str(idx),
+                                      letter_annotations={
+                                          "phred_quality": [40 for _ in range(len(seq_string))]}))
+
+    def build(self):
+        with open(self.out_file, 'w') as fh:
+            SeqIO.write(self.records, fh, 'fastq')
+        return self.out_file
 
 
 @attr.s(slots=True)
@@ -98,8 +126,16 @@ class AbeonaSubgraphExpectation(object):
         self._has_seqs(*seq_strings, dir_name='candidate_transcripts')
         return self
 
+    def has_no_candidate_transcripts(self):
+        self.has_candidate_transcripts()
+        return self
+
     def has_transcripts(self, *seq_strings):
         self._has_seqs(*seq_strings, dir_name='transcripts')
+
+    def has_no_transcripts(self):
+        self.has_transcripts()
+        return self
 
 
 class TestAssemble(object):
@@ -120,18 +156,18 @@ class TestAssemble(object):
         all_expected_kmers = list(itertools.chain(*expected_kmers))
 
         out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-tip-length', 0,
+                '--min-unitig-coverage', 0, ]
 
         # when
-        abeona_main(str(c) for c in ['assemble',
-                                              '--fastx-single', input_fastq,
-                                              '--kallisto-fastx-single', input_fastq,
-                                              '--kallisto-fragment-length', 3,
-                                              '--kallisto-sd', 0.1,
-                                              '--bootstrap-samples', 100,
-                                              '--out-dir', out_dir,
-                                              '--kmer-size', kmer_size,
-                                              '--min-tip-length', 0,
-                                              '--min-unitig-coverage', 0, ])
+        AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir)
@@ -164,19 +200,19 @@ class TestAssemble(object):
         all_expected_post_pruned_kmers = list(itertools.chain(*expected_post_pruning_kmers))
 
         out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-tip-length', min_tip_length,
+                '--min-unitig-coverage', 0,
+                '--quiet']
 
         # when
-        abeona_main(str(c) for c in ['assemble',
-                                              '--fastx-single', input_fastq,
-                                              '--kallisto-fastx-single', input_fastq,
-                                              '--kallisto-fragment-length', 3,
-                                              '--kallisto-sd', 0.1,
-                                              '--bootstrap-samples', 100,
-                                              '--out-dir', out_dir,
-                                              '--kmer-size', kmer_size,
-                                              '--min-tip-length', min_tip_length,
-                                              '--min-unitig-coverage', 0,
-                                              '--quiet'])
+        AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir, min_tip_length)
@@ -209,17 +245,17 @@ class TestAssemble(object):
         all_expected_clean_kmers = list(itertools.chain(*expected_clean_kmers))
 
         out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-tip-length', 0]
 
         # when
-        abeona_main(str(c) for c in ['assemble',
-                                              '--fastx-single', input_fastq,
-                                              '--kallisto-fastx-single', input_fastq,
-                                              '--kallisto-fragment-length', 3,
-                                              '--kallisto-sd', 0.1,
-                                              '--bootstrap-samples', 100,
-                                              '--out-dir', out_dir,
-                                              '--kmer-size', kmer_size,
-                                              '--min-tip-length', 0])
+        AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir)
@@ -232,6 +268,47 @@ class TestAssemble(object):
                 .has_nodes(*expected_clean_kmers[sg_id])
             sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
+
+
+class TestMaxPaths(object):
+    def test_when_using_max_paths_traverses_two_subgraphs_into_one_transcript(self, tmpdir):
+        # given
+        kmer_size = 3
+
+        sequences = ['AAAT', 'AAAC', 'ATCC']
+        b = FastqBuilder(tmpdir / 'input.fastq')
+        [b.with_seq(seq) for seq in sequences]
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-tip-length', 0,
+                '--min-unitig-coverage', 0,
+                '--max-paths-per-subgraph', 1]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_graph_with_kmers('ATC', 'GGA', 'AAA', 'AAT', 'AAC')
+        expect.has_out_clean_graph_with_kmers('ATC', 'GGA', 'AAA', 'AAT', 'AAC')
+
+        # correct graph
+        sg_expect = expect.has_subgraph_with_kmers('ATC', 'GGA')
+        sg_expect.has_traversal().has_nodes('ATC', 'GGA')
+        sg_expect.has_candidate_transcripts('ATCC')
+        sg_expect.has_transcripts('ATCC')
+
+        # graph with too many paths
+        expect = expect.has_subgraph_with_kmers('AAA', 'AAC', 'AAT')
+        expect.has_no_transcripts()
 
 
 class TestInitialSeqsFasta(object):
@@ -262,19 +339,19 @@ class TestInitialSeqsFasta(object):
         expected_subgraph_aligned_kmers = [{'AAA', 'AAT'}, {'ATC', 'TCC'}]
 
         out_dir = Path(tmpdir) / 'abeona'
+        args = ['--initial-contigs', inital_contigs_fasta,
+                '--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-tip-length', 0,
+                '--min-unitig-coverage', 0, ]
 
         # when
-        abeona_main(str(c) for c in ['assemble',
-                                              '--initial-contigs', inital_contigs_fasta,
-                                              '--fastx-single', input_fastq,
-                                              '--kallisto-fastx-single', input_fastq,
-                                              '--kallisto-fragment-length', 3,
-                                              '--kallisto-sd', 0.1,
-                                              '--bootstrap-samples', 100,
-                                              '--out-dir', out_dir,
-                                              '--kmer-size', kmer_size,
-                                              '--min-tip-length', 0,
-                                              '--min-unitig-coverage', 0, ])
+        AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir)
