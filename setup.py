@@ -32,7 +32,7 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
     entry_points={
-        'console_scripts': ['abeona=abeona.__main__:main_without_argv'],
+        'console_scripts': ['abeona=abeona.__main__:main'],
     },
 
     install_requires="""

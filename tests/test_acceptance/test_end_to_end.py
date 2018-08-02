@@ -4,6 +4,7 @@ from pathlib import Path
 
 import abeona.cli
 import attr
+import subprocess
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -17,7 +18,7 @@ class AbeonaRunner(object):
 
     def run(self, *args):
         argv = ['abeona'] + [str(a) for a in args]
-        abeona.cli.main(argv)
+        subprocess.run(argv)
 
     def assemble(self, *args):
         argv = ['assemble'] + list(args)
