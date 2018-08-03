@@ -1,10 +1,9 @@
 import gzip
 import itertools
+import subprocess
 from pathlib import Path
 
-import abeona.cli
 import attr
-import subprocess
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -83,16 +82,21 @@ class AbeonaExpectation(object):
         return self
 
     def has_out_graph_with_kmers(self, *kmers):
-        with open(self.out_graph, 'rb') as fh:
-            output_kmers = list(kmer_string_generator_from_stream(fh))
-        assert set(kmers) == set(output_kmers)
+        self._has_kmers_in_graph(kmers, self.out_graph)
         return self
 
     def has_out_clean_graph_with_kmers(self, *kmers):
-        with open(self.out_clean, 'rb') as fh:
-            output_kmers = list(kmer_string_generator_from_stream(fh))
-        assert set(kmers) == set(output_kmers)
+        self._has_kmers_in_graph(kmers, self.out_clean)
         return self
+
+    def has_out_tip_pruned_raph_with_kmers(self, *kmers):
+        self._has_kmers_in_graph(kmers, self.out_clean_tip_pruned)
+        return self
+
+    def _has_kmers_in_graph(self, kmers, graph):
+        with open(graph, 'rb') as fh:
+            output_kmers = list(kmer_string_generator_from_stream(fh))
+        assert sorted(kmers) == sorted(output_kmers)
 
 
 @attr.s(slots=True)
@@ -164,7 +168,6 @@ class TestAssemble(object):
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
-                '--min-tip-length', 0,
                 '--min-unitig-coverage', 0, ]
 
         # when
@@ -183,13 +186,11 @@ class TestAssemble(object):
 
     def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
         # given
-        kmer_size = 3
         min_tip_length = 2
-        sequences = ['AAATG', 'AAAC', 'ATCCC', 'ATCG']
         seq_recs = [SeqRecord(Seq(seq), id=str(idx),
                               letter_annotations={"phred_quality": [40 for _ in range(len(seq))]})
                     for
-                    idx, seq in enumerate(sequences)]
+                    idx, seq in enumerate(['AAATG', 'AAAC', 'ATCCC', 'ATCG'])]
         input_fastq = tmpdir / 'single.fq'
         with open(input_fastq, 'w') as fh:
             SeqIO.write(seq_recs, fh, 'fastq')
@@ -207,7 +208,7 @@ class TestAssemble(object):
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
-                '--kmer-size', kmer_size,
+                '--kmer-size', 3,
                 '--min-tip-length', min_tip_length,
                 '--min-unitig-coverage', 0,
                 '--quiet']
@@ -218,7 +219,8 @@ class TestAssemble(object):
         # then
         expect = AbeonaExpectation(out_dir, min_tip_length)
         expect.has_out_graph_with_kmers(*all_expected_kmers)
-        expect.has_out_clean_graph_with_kmers(*all_expected_post_pruned_kmers)
+        expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
+        expect.has_out_tip_pruned_raph_with_kmers(*all_expected_post_pruned_kmers)
 
         for sg_id in range(2):
             sg_expect = expect.has_subgraph_with_kmers(*expected_post_pruning_kmers[sg_id])
@@ -252,8 +254,7 @@ class TestAssemble(object):
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
-                '--kmer-size', kmer_size,
-                '--min-tip-length', 0]
+                '--kmer-size', kmer_size]
 
         # when
         AbeonaRunner().assemble(*args)
@@ -289,7 +290,6 @@ class TestMaxPaths(object):
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
-                '--min-tip-length', 0,
                 '--min-unitig-coverage', 0,
                 '--max-paths-per-subgraph', 1]
 
@@ -348,7 +348,6 @@ class TestInitialSeqsFasta(object):
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
-                '--min-tip-length', 0,
                 '--min-unitig-coverage', 0, ]
 
         # when

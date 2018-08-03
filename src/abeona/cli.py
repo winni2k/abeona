@@ -42,7 +42,7 @@ def assemble_main(argv):
                         required=False)
 
     group = parser.add_argument_group('graph traversal cleaning')
-    group.add_argument('--min-tip-length', type=int, default=0)
+    group.add_argument('--min-tip-length', type=int, default=None)
     group.add_argument('--min-unitig-coverage', type=int, default=4)
 
     group = parser.add_argument_group('candidate transcript creation')
