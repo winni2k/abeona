@@ -42,7 +42,7 @@ def assemble_main(argv):
                         required=False)
 
     group = parser.add_argument_group('graph traversal cleaning')
-    group.add_argument('--min-tip-length', type=int, default=None)
+    group.add_argument('--min-tip-length', type=int, default=0)
     group.add_argument('--min-unitig-coverage', type=int, default=4)
 
     group = parser.add_argument_group('candidate transcript creation')
@@ -72,17 +72,22 @@ def assemble_main(argv):
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
 
-    package_snakefile = Path(__file__).parent / 'assemble' / 'Snakefile'
-    snakefile = out_dir / 'Snakefile'
-    if snakefile.is_file():
-        snakefile.unlink()
-    snakefile.symlink_to(package_snakefile)
+    script_name = 'assemble.nf'
+    pipeline_script = out_dir / script_name
+    package_script = Path(__file__).parent / 'assemble' / script_name
+    if pipeline_script.is_file():
+        pipeline_script.unlink()
+    pipeline_script.symlink_to(package_script)
 
-    with open(out_dir / 'args.json', 'w') as fh:
-        json.dump({a: getattr(args, a) for a in dir(args) if not a.startswith('_')}, fh)
-    cmd = f'cd {out_dir} && snakemake -j {args.jobs}'
-    if args.quiet:
-        cmd += ' --quiet'
+    args_file = 'args.json'
+    args_dict = {a: getattr(args, a) for a in dir(args) if not a.startswith('_')}
+    args_dict['mccortex'] = f'mccortex {args.kmer_size}'
+    args_dict['mccortex_args'] = f'--sort --force -m {args.memory}G'
+    with open(out_dir / args_file, 'w') as fh:
+        json.dump(args_dict, fh)
+    cmd = f'cd {out_dir} && nextflow run ./{script_name} -params-file {args_file}'
+    # if args.quiet:
+    #     cmd += ' --quiet'
     os.system(cmd)
 
 

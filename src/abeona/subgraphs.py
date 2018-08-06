@@ -2,7 +2,6 @@ import attr
 from pathlib import Path
 from Bio import SeqIO
 from cortexpy.constants import EngineTraversalOrientation
-from cortexpy.graph import traversal
 from cortexpy.graph.parser.random_access import RandomAccess
 from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
 from cortexpy.graph.traversal.engine import Engine

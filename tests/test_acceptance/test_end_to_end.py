@@ -117,8 +117,11 @@ class AbeonaSubgraphExpectation(object):
         graph = load_cortex_graph(open(subgraph, 'rb'))
         return KmerGraphExpectation(graph)
 
-    def _has_seqs(self, *expected_seq_strings, dir_name):
-        transcripts = self.out_dir / dir_name / f'g{self.sg_id}.transcripts.fa.gz'
+    def _has_seqs(self, *expected_seq_strings, dir_name, suffix, no_file=False):
+        transcripts = self.out_dir / dir_name / f'g{self.sg_id}{suffix}'
+        if no_file:
+            assert not transcripts.is_file()
+            return
         assert transcripts.is_file()
         with gzip.open(str(transcripts), 'rt') as fh:
             seqs = list(SeqIO.parse(fh, 'fasta'))
@@ -127,19 +130,21 @@ class AbeonaSubgraphExpectation(object):
             assert expected_seq_string in seq_strings
         assert len(set(expected_seq_strings)) == len(seqs)
 
-    def has_candidate_transcripts(self, *seq_strings):
-        self._has_seqs(*seq_strings, dir_name='candidate_transcripts')
+    def has_candidate_transcripts(self, *seq_strings, no_file=False):
+        self._has_seqs(*seq_strings, dir_name='candidate_transcripts',
+                       suffix='.candidate_transcripts.fa.gz', no_file=no_file)
         return self
 
     def has_no_candidate_transcripts(self):
         self.has_candidate_transcripts()
         return self
 
-    def has_transcripts(self, *seq_strings):
-        self._has_seqs(*seq_strings, dir_name='transcripts')
+    def has_transcripts(self, *seq_strings, no_file=False):
+        self._has_seqs(*seq_strings, dir_name='transcripts', suffix='.transcripts.fa.gz',
+                       no_file=no_file)
 
     def has_no_transcripts(self):
-        self.has_transcripts()
+        self.has_transcripts(no_file=True)
         return self
 
 
