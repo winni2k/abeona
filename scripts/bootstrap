@@ -3,5 +3,5 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-pipenv install --dev
+pipenv install -r requirements.txt
 
