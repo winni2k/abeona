@@ -88,7 +88,7 @@ def assemble_main(argv):
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -params-file {args_file}'
     if args.resume:
-        cmd += ' --resume'
+        cmd += ' -resume'
     logger.info(cmd)
     # if args.quiet:
     #     cmd += ' --quiet'
