@@ -75,7 +75,7 @@ def assemble_main(argv):
     script_name = 'assemble.nf'
     pipeline_script = out_dir / script_name
     package_script = Path(__file__).parent / 'assemble' / script_name
-    if pipeline_script.is_file():
+    if pipeline_script.is_symlink():
         pipeline_script.unlink()
     pipeline_script.symlink_to(package_script)
 
@@ -85,7 +85,8 @@ def assemble_main(argv):
     args_dict['mccortex_args'] = f'--sort --force -m {args.memory}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
-    cmd = f'cd {out_dir} && nextflow run ./{script_name} -params-file {args_file}'
+    cmd = f'cd {out_dir} && nextflow run {script_name} -params-file {args_file}'
+    logger.info(cmd)
     # if args.quiet:
     #     cmd += ' --quiet'
     os.system(cmd)
