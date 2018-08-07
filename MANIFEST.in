@@ -1,4 +1,4 @@
 include README.rst
 include LICENSE
 include Pipfile.lock
-include src/abeona/assemble/Snakefile
+include src/abeona/assemble/assemble.nf
