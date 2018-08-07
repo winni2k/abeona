@@ -31,6 +31,7 @@ def assemble_main(argv):
     parser.add_argument('-k', '--kmer-size', default=47)
     parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes')
     parser.add_argument('-q', '--quiet', action='store_true', default=False)
+    parser.add_argument('--resume', action='store_true', default=False)
 
     parser.add_argument('--fastx-forward', help='Forward sequences in FASTA/FASTQ format',
                         required=False)
@@ -86,6 +87,8 @@ def assemble_main(argv):
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -params-file {args_file}'
+    if args.resume:
+        cmd += ' --resume'
     logger.info(cmd)
     # if args.quiet:
     #     cmd += ' --quiet'
