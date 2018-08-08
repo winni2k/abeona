@@ -1,23 +1,26 @@
 import gzip
 import itertools
-import subprocess
 from pathlib import Path
 
 import attr
+import os
+
+import pytest
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
+from subprocess import check_call
 
 
 @attr.s(slots=True)
 class AbeonaRunner(object):
 
     def run(self, *args):
-        argv = ['abeona'] + [str(a) for a in args]
-        subprocess.run(argv)
+        argv = ['python', '-mabeona'] + [str(a) for a in args]
+        check_call(argv)
 
     def assemble(self, *args):
         argv = ['assemble'] + list(args)
@@ -28,12 +31,14 @@ class AbeonaRunner(object):
 class FastqBuilder(object):
     out_file = attr.ib()
     records = attr.ib(attr.Factory(list))
+    qual = attr.ib(40)
 
     def with_seq(self, seq_string):
         idx = len(self.records)
         self.records.append(SeqRecord(Seq(seq_string), id=str(idx),
                                       letter_annotations={
-                                          "phred_quality": [40 for _ in range(len(seq_string))]}))
+                                          "phred_quality": [self.qual for _ in
+                                                            range(len(seq_string))]}))
 
     def build(self):
         with open(self.out_file, 'w') as fh:
@@ -149,6 +154,27 @@ class AbeonaSubgraphExpectation(object):
 
 
 class TestAssemble(object):
+    def test_raises_without_input(self, tmpdir):
+        b = FastqBuilder(tmpdir / 'input.fastq')
+        input_fastq = b.build()
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--fastx-single', input_fastq,
+            '--kallisto-fastx-single', input_fastq,
+            '--kallisto-fragment-length', 31,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 100,
+            '--out-dir', out_dir,
+            '--kmer-size', 47,
+            '--min-unitig-coverage', 0,
+        ]
+
+        # when/then
+        with pytest.raises(Exception):
+            AbeonaRunner().assemble(*args)
+
+
+
     def test_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
         # given
         kmer_size = 3
@@ -275,6 +301,44 @@ class TestAssemble(object):
                 .has_nodes(*expected_clean_kmers[sg_id])
             sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
+
+    def test_ignores_polyA_tails_with_kmer_size_47(self, tmpdir):
+        # given
+        b = FastqBuilder(tmpdir / 'input.fastq')
+
+        for _ in range(4):
+            b.with_seq('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+            b.with_seq('ATATATATATATATATATATATATATATATATATATATATATATATA')
+
+        input_fastq = b.build()
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--fastx-single', input_fastq,
+            '--kallisto-fastx-single', input_fastq,
+            '--kallisto-fragment-length', 31,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 100,
+            '--out-dir', out_dir,
+            '--kmer-size', 47,
+            '--min-unitig-coverage', 0,
+        ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_graph_with_kmers('ATATATATATATATATATATATATATATATATATATATATATATATA',
+                                        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+
+        expect \
+            .has_subgraph_with_kmers('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA') \
+            .has_no_transcripts()
+        expect \
+            .has_subgraph_with_kmers('ATATATATATATATATATATATATATATATATATATATATATATATA') \
+            .has_transcripts('ATATATATATATATATATATATATATATATATATATATATATATATA')
+        expect.has_n_subgraphs(2)
+
 
 
 class TestMaxPaths(object):

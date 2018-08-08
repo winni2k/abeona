@@ -1,6 +1,8 @@
 import logging
 import sys
 
+import subprocess
+
 logger = logging.getLogger('abeona')
 
 
@@ -92,7 +94,7 @@ def assemble_main(argv):
     logger.info(cmd)
     # if args.quiet:
     #     cmd += ' --quiet'
-    os.system(cmd)
+    return subprocess.run(cmd, shell=True).returncode
 
 
 def subgraphs_main(argv):

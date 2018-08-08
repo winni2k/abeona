@@ -138,16 +138,24 @@ process buildKallistoIndices {
     set gid, file(fasta) from candidate_transcripts
 
     output:
-    set gid, file(fasta), file('*.ki') into kallisto_indices
+    set(gid, file(fasta), file('*.ki')) optional true into kallisto_indices
 
     """
     #!/usr/bin/env python3
     import os
+    import subprocess
+    import re
 
-    cmd = 'kallisto index -i ${fasta}.ki $fasta'
+    index = '${fasta}.ki'
+    cmd = f'kallisto index -i {index} $fasta'
     if int($params.kmer_size) < 31:
         cmd += ' --kmer-size $params.kmer_size'
-    os.system(cmd)
+    subprocess.check_call(cmd.split(' '))
+
+    cprocess = subprocess.run(['kallisto', 'inspect', index], stdout=subprocess.PIPE, encoding='utf8')
+    print(cprocess.stdout)
+    if re.search(r'Number of k-mers in index =\\s+0', cprocess.stdout):
+        os.remove(index)
     """
 }
 
