@@ -1,10 +1,9 @@
 import gzip
 import itertools
 from pathlib import Path
+from subprocess import check_call
 
 import attr
-import os
-
 import pytest
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -12,7 +11,6 @@ from Bio.SeqRecord import SeqRecord
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
-from subprocess import check_call
 
 
 @attr.s(slots=True)
@@ -39,6 +37,12 @@ class FastqBuilder(object):
                                       letter_annotations={
                                           "phred_quality": [self.qual for _ in
                                                             range(len(seq_string))]}))
+        return self
+
+    def with_seqs(self, *seq_strings):
+        for seq_string in seq_strings:
+            self.with_seq(seq_string)
+        return self
 
     def build(self):
         with open(self.out_file, 'w') as fh:
@@ -173,19 +177,12 @@ class TestAssemble(object):
         with pytest.raises(Exception):
             AbeonaRunner().assemble(*args)
 
-
-
     def test_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
         # given
         kmer_size = 3
-        sequences = ['AAAT', 'ATCC']
-        seq_recs = [SeqRecord(Seq(seq), id=str(idx),
-                              letter_annotations={"phred_quality": [40 for _ in range(len(seq))]})
-                    for
-                    idx, seq in enumerate(sequences)]
-        input_fastq = tmpdir / 'single.fq'
-        with open(input_fastq, 'w') as fh:
-            SeqIO.write(seq_recs, fh, 'fastq')
+        b = FastqBuilder(tmpdir / 'single.fq')
+        b.with_seqs('AAAT', 'ATCC')
+        input_fastq = b.build()
 
         expected_sequences = [['AAAT'], ['ATCC']]
         expected_kmers = [{'AAA', 'AAT'}, {'ATC', 'GGA'}]
@@ -212,19 +209,51 @@ class TestAssemble(object):
         for sg_id in range(2):
             sg_expect = expect.has_subgraph_with_kmers(*expected_kmers[sg_id])
             sg_expect.has_traversal().has_nodes(*expected_kmers[sg_id])
-            sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
+
+    def test_traverses_two_subgraphs_of_two_transcripts_into_four_transcripts(self, tmpdir):
+        # given
+        kmer_size = 3
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(4):
+            b.with_seqs('AAAT', 'AAAC', 'ATCC', 'ATCA')
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+
+        # when
+        AbeonaRunner().assemble('--fastx-single', input_fastq,
+                                '--kallisto-fastx-single', input_fastq,
+                                '--kallisto-fragment-length', 3,
+                                '--kallisto-sd', 0.1,
+                                '--bootstrap-samples', 100,
+                                '--out-dir', out_dir,
+                                '--kmer-size', kmer_size,
+                                '--min-unitig-coverage', 0)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_graph_with_kmers('AAA', 'AAT', 'AAC', 'ATC', 'GGA', 'TCA')
+        expect.has_out_clean_graph_with_kmers('AAA', 'AAT', 'AAC', 'ATC', 'GGA', 'TCA')
+
+        sg = expect.has_subgraph_with_kmers('AAA', 'AAT', 'AAC')
+        sg.has_traversal().has_nodes('AAA', 'AAT', 'AAC')
+        sg.has_candidate_transcripts('AAAT', 'AAAC')
+        sg.has_transcripts('AAAT', 'AAAC')
+
+        sg = expect.has_subgraph_with_kmers('ATC', 'GGA', 'TCA')
+        sg.has_traversal().has_nodes('ATC', 'GGA', 'TCA')
+        sg.has_candidate_transcripts('ATCC', 'ATCA')
+        sg.has_transcripts('ATCC', 'ATCA')
 
     def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
         # given
         min_tip_length = 2
-        seq_recs = [SeqRecord(Seq(seq), id=str(idx),
-                              letter_annotations={"phred_quality": [40 for _ in range(len(seq))]})
-                    for
-                    idx, seq in enumerate(['AAATG', 'AAAC', 'ATCCC', 'ATCG'])]
-        input_fastq = tmpdir / 'single.fq'
-        with open(input_fastq, 'w') as fh:
-            SeqIO.write(seq_recs, fh, 'fastq')
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for seq in ['AAATG', 'AAAC', 'ATCCC', 'ATCG']:
+            b.with_seq(seq)
+        input_fastq = b.build()
 
         expected_sequences = [['AAATG'], ['ATCCC']]
         expected_kmers = [{'AAA', 'AAT', 'AAC', 'ATG'}, {'ATC', 'GGA', 'CCC', 'CGA'}]
@@ -256,7 +285,6 @@ class TestAssemble(object):
         for sg_id in range(2):
             sg_expect = expect.has_subgraph_with_kmers(*expected_post_pruning_kmers[sg_id])
             sg_expect.has_traversal().has_nodes(*expected_post_pruning_kmers[sg_id])
-            sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
 
     def test_when_filtering_traverses_three_subgraphs_into_two_transcripts(self, tmpdir):
@@ -299,9 +327,10 @@ class TestAssemble(object):
             sg_expect = expect.has_subgraph_with_kmers(*expected_clean_kmers[sg_id])
             sg_expect.has_traversal() \
                 .has_nodes(*expected_clean_kmers[sg_id])
-            sg_expect.has_candidate_transcripts(*expected_sequences[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
 
+    @pytest.mark.skip(
+        reason='Graphs with single unitigs are not passed through Kallisto at this time')
     def test_ignores_polyA_tails_with_kmer_size_47(self, tmpdir):
         # given
         b = FastqBuilder(tmpdir / 'input.fastq')
@@ -340,7 +369,6 @@ class TestAssemble(object):
         expect.has_n_subgraphs(2)
 
 
-
 class TestMaxPaths(object):
     def test_when_using_max_paths_traverses_two_subgraphs_into_one_transcript(self, tmpdir):
         # given
@@ -373,7 +401,6 @@ class TestMaxPaths(object):
         # correct graph
         sg_expect = expect.has_subgraph_with_kmers('ATC', 'GGA')
         sg_expect.has_traversal().has_nodes('ATC', 'GGA')
-        sg_expect.has_candidate_transcripts('ATCC')
         sg_expect.has_transcripts('ATCC')
 
         # graph with too many paths
@@ -393,13 +420,10 @@ class TestInitialSeqsFasta(object):
                     str(inital_contigs_fasta),
                     'fasta')
 
-        input_fastq = tmpdir / 'single.fq'
-        seq_recs = [SeqRecord(Seq(seq), id=str(idx),
-                              letter_annotations={"phred_quality": [40 for _ in range(len(seq))]})
-                    for
-                    idx, seq in enumerate(sequences)]
-        with open(input_fastq, 'w') as fh:
-            SeqIO.write(seq_recs, fh, 'fastq')
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for seq in sequences:
+            b.with_seq(seq)
+        input_fastq = b.build()
 
         expected_kmers = [{'AAA', 'AAT'}, {'ATC', 'GGA'}]
         all_expected_kmers = list(itertools.chain(*expected_kmers))
@@ -431,6 +455,5 @@ class TestInitialSeqsFasta(object):
             sg_expect = expect.has_subgraph_with_kmers(*expected_subgraph_kmers[sg_id])
             sg_expect.has_traversal() \
                 .has_nodes(*expected_subgraph_aligned_kmers[sg_id])
-            sg_expect.has_candidate_transcripts(*expected_subgraph_sequences[sg_id])
             sg_expect.has_transcripts(*expected_subgraph_sequences[sg_id])
             expect.has_n_subgraphs(1)

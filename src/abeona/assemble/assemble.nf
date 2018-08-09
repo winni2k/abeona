@@ -105,26 +105,33 @@ process candidateTranscripts {
     set gid, file(graph) from gid_traversals
 
     output:
-    set(gid, file('*.fa.gz')) optional true into candidate_transcripts
+    set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into candidate_transcripts
+    file 'g*.transcripts.fa.gz' optional true into single_transcripts
 
     """
     #!/usr/bin/env python3
     import os
     import shutil
+    import gzip
+    import subprocess
     from yaml import load
+    from Bio.SeqIO import parse
     from cortexpy.command import get_exit_code_yaml_path
+
     CORTEXPY_EXIT_CODES = load(open(get_exit_code_yaml_path(), 'rt'))
 
     fasta = 'g${gid}.candidate_transcripts.fa.gz'
+    transcript = 'g${gid}.transcripts.fa.gz'
     cmd = f'''
     set -o pipefail
     cortexpy view traversal $graph --max-paths $params.max_paths_per_subgraph \
            | gzip -c > {fasta}.tmp
     '''
-    exitcode = os.system(cmd) >> 8
-    print(exitcode)
+    exitcode = subprocess.run(cmd, shell=True).returncode
     if exitcode == 0:
         shutil.move(f'{fasta}.tmp', fasta)
+        if sum(1 for _ in parse(gzip.open(fasta, "rt"), 'fasta')) == 1:
+            shutil.move(fasta, transcript)
     elif exitcode != CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
         exit(exitcode)
     """
@@ -186,13 +193,11 @@ process kallistoQuant {
 }
 
 process filter_transcripts {
-    publishDir 'transcripts'
-
     input:
     set gid, file(candidates), file(kallisto_quant_dir) from kallisto_quants
 
     output:
-    file '*.transcripts.fa.gz' into transcripts
+    file '*.transcripts.fa.gz' into filtered_transcripts
 
     """
     #!/usr/bin/env python3
@@ -202,7 +207,11 @@ process filter_transcripts {
     import logging
     import gzip
     from Bio import SeqIO
-
+    if '$params.quiet' == 'false':
+        log_level = logging.INFO
+    else:
+        log_level = logging.WARNING
+    logging.basicConfig(level=log_level)
     logger = logging.getLogger('abeona.assembly.filter_transcripts')
 
     def filter_and_annotate_contigs(filtered_counts, candidate_transcripts):
@@ -211,9 +220,6 @@ process filter_transcripts {
                 if record.id in filtered_counts.index:
                     record.description = 'prop_bs_est_counts_ge_1={}'.format(filtered_counts.at[record.id])
                     yield record
-
-
-
     output = 'g${gid}.transcripts.fa.gz'
     Path(output).parent.mkdir(exist_ok=True)
 
@@ -231,7 +237,7 @@ process filter_transcripts {
 
     keep_counts = ge1_counts[ge1_counts >= keep_prop]
 
-    logging.info(
+    logger.info(
         f'Keeping contigs with >= {keep_prop} of bootstrapped est_counts >= {est_count_threshold}')
     logger.info(f'keeping {len(keep_counts)} out of {len(ge1_counts)} contigs.')
 
@@ -243,3 +249,6 @@ process filter_transcripts {
     """
 
 }
+
+all_transcripts = filtered_transcripts.mix(single_transcripts).collectFile(storeDir: 'transcripts')
+
