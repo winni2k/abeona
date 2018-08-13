@@ -134,6 +134,10 @@ class AbeonaSubgraphExpectation(object):
         assert transcripts.is_file()
         with gzip.open(str(transcripts), 'rt') as fh:
             seqs = list(SeqIO.parse(fh, 'fasta'))
+
+        for seq in seqs:
+            assert seq.id.startswith(f'g{self.sg_id}_')
+
         seq_strings = {str(s.seq) for s in seqs} | {str(s.seq.reverse_complement()) for s in seqs}
         for expected_seq_string in expected_seq_strings:
             assert expected_seq_string in seq_strings

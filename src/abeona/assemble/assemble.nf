@@ -124,7 +124,7 @@ process candidateTranscripts {
     transcript = 'g${gid}.transcripts.fa.gz'
     cmd = f'''
     set -o pipefail
-    cortexpy view traversal $graph --max-paths $params.max_paths_per_subgraph \
+    cortexpy view traversal $graph --max-paths $params.max_paths_per_subgraph --graph-index ${gid} \
            | gzip -c > {fasta}.tmp
     '''
     exitcode = subprocess.run(cmd, shell=True).returncode
