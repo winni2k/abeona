@@ -252,3 +252,17 @@ process filter_transcripts {
 
 all_transcripts = filtered_transcripts.mix(single_transcripts).collectFile(storeDir: 'transcripts')
 
+process concatTranscripts {
+    publishDir 'all_transcripts'
+
+    input:
+    file inputs from all_transcripts.collect()
+
+    output:
+    file 'transcripts.fa.gz'
+
+    """
+    cat *.fa.gz > transcripts.fa.gz
+    """
+
+}

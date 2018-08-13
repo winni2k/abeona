@@ -59,6 +59,7 @@ class AbeonaExpectation(object):
     subgraphs = attr.ib(init=False)
     traversal_dir = attr.ib(init=False)
     out_clean_tip_pruned = attr.ib(init=False)
+    all_transcripts = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
@@ -67,6 +68,7 @@ class AbeonaExpectation(object):
         self.out_clean_tip_pruned = self.out_clean.with_suffix(
             f'.min_tip_length_{self.prune_length}.ctx')
         self.traversal_dir = self.out_dir / 'traversals'
+        self.all_transcripts = self.out_dir / 'all_transcripts' / 'transcripts.fa.gz'
         self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
                           for i, _ in
                           enumerate(self.traversal_dir.glob(f'g*.traverse.ctx'))]
@@ -100,6 +102,13 @@ class AbeonaExpectation(object):
 
     def has_out_tip_pruned_raph_with_kmers(self, *kmers):
         self._has_kmers_in_graph(kmers, self.out_clean_tip_pruned)
+        return self
+
+    def has_out_all_transcripts(self, *seqs):
+        expected_seqs = [lexlo(s) for s in seqs]
+        with gzip.open(self.all_transcripts, 'rt') as fh:
+            seqs = list(SeqIO.parse(fh, 'fasta'))
+        assert sorted(expected_seqs) == sorted([str(lexlo(rec.seq)) for rec in seqs])
         return self
 
     def _has_kmers_in_graph(self, kmers, graph):
@@ -214,6 +223,8 @@ class TestAssemble(object):
             sg_expect = expect.has_subgraph_with_kmers(*expected_kmers[sg_id])
             sg_expect.has_traversal().has_nodes(*expected_kmers[sg_id])
             sg_expect.has_transcripts(*expected_sequences[sg_id])
+
+        expect.has_out_all_transcripts('AAAT', 'ATCC')
 
     def test_traverses_two_subgraphs_of_two_transcripts_into_four_transcripts(self, tmpdir):
         # given
