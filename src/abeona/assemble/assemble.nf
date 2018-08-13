@@ -11,6 +11,7 @@ process fullCortexGraph {
     """
     #!/usr/bin/env python3
     import os
+    from subprocess import run
 
     cmd = [
         '$params.mccortex', 'build', '$params.mccortex_args',
@@ -24,7 +25,7 @@ process fullCortexGraph {
         cmd += ['--seq', '$params.fastx_single']
     cmd.append('full.ctx')
     cmd = [str(c) for c in cmd]
-    os.system(' '.join(cmd))
+    run(' '.join(cmd), check=True, shell=True)
     """
 }
 
@@ -56,13 +57,14 @@ process pruneCortexGraphOfTips {
 
     """
     #!/usr/bin/env python3
-    import os
+    from subprocess import run
 
     output = "full.clean.min_tip_length_${params.min_tip_length}.ctx"
     if 0 == $params.min_tip_length:
-        os.system(f"cp $graph {output}")
+        run(f'cp $graph {output}', check=True, shell=True)
     else:
-        os.system(f'cortexpy prune --out {output} $graph --remove-tips $params.min_tip_length')
+        run(f'cortexpy prune --out {output} $graph --remove-tips $params.min_tip_length',
+            check=True, shell=True)
     """
 }
 
@@ -77,12 +79,12 @@ process traverseCortexSubgraph {
 
     """
     #!/usr/bin/env python3
-    import os
+    from subprocess import run
 
     cmd = 'python -m abeona subgraphs $graph . -m $params.memory'
     if '$params.initial_contigs' != 'null':
         cmd += ' --initial-contigs $params.initial_contigs'
-    os.system(cmd)
+    run(cmd, shell=True, check=True)
     """
 }
 
@@ -110,7 +112,6 @@ process candidateTranscripts {
 
     """
     #!/usr/bin/env python3
-    import os
     import shutil
     import gzip
     import subprocess
@@ -177,7 +178,7 @@ process kallistoQuant {
 
     """
     #!/usr/bin/env python3
-    import os
+    from subprocess import run
 
     cmd = 'kallisto quant -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
     if '$params.kallisto_fastx_forward' != 'null':
@@ -188,7 +189,7 @@ process kallistoQuant {
             ' --single $params.kallisto_fastx_single'
         )
     print(cmd)
-    os.system(cmd)
+    run(cmd, check=True, shell=True)
     """
 }
 
