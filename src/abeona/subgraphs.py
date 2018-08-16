@@ -1,12 +1,13 @@
-import attr
+import logging
 from pathlib import Path
+
+import attr
 from Bio import SeqIO
 from cortexpy.constants import EngineTraversalOrientation
-from cortexpy.graph.parser.random_access import RandomAccess
+from cortexpy.graph.parser.random_access import SlurpedRandomAccess
 from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
 from cortexpy.graph.traversal.engine import Engine
 from cortexpy.utils import lexlo
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('abeona.subgraphs')
@@ -51,32 +52,29 @@ def main(args):
     if not input_graph.is_file():
         raise Exception(f'Input cortex graph ({input_graph}) does not exist')
 
-    with open(input_graph, 'rb') as first_input_graph_fh:
-        ra = RandomAccess(first_input_graph_fh, kmer_cache_size=0)
-        if args.initial_contigs:
-            kstring_tracker = load_initial_kmers(ra, args.initial_contigs)
-        else:
-            kstring_tracker = KmerStringTracker(unseen=ra)
-        graph_idx = 0
-        with open(input_graph, 'rb') as fh:
-            ra_parser = RandomAccess(fh, kmer_cache_size=0)
-            for initial_kmer_string in kstring_tracker.strings_not_seen():
-                graph_id = f'g{graph_idx}'
-                subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
-                logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
+    ra = SlurpedRandomAccess.from_handle(open(input_graph, 'rb'))
+    if args.initial_contigs:
+        kstring_tracker = load_initial_kmers(ra, args.initial_contigs)
+    else:
+        kstring_tracker = KmerStringTracker(unseen=ra)
+    graph_idx = 0
+    for initial_kmer_string in kstring_tracker.strings_not_seen():
+        graph_id = f'g{graph_idx}'
+        subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
+        logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
 
-                engine = Engine(
-                    ra_parser,
-                    orientation=EngineTraversalOrientation.both,
-                    max_nodes=None,
-                    logging_interval=90
-                )
-                engine.traverse_from(str(initial_kmer_string))
-                with open(subgraph_path, 'wb') as out_fh:
-                    dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
-                for node in engine.graph:
-                    kstring_tracker.add_seen(lexlo(node))
-                logger.info(
-                    f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra_parser) - len(kstring_tracker.seen)} kmers left')
-                graph_idx += 1
+        engine = Engine(
+            ra,
+            orientation=EngineTraversalOrientation.both,
+            max_nodes=None,
+            logging_interval=90
+        )
+        engine.traverse_from(str(initial_kmer_string))
+        with open(subgraph_path, 'wb') as out_fh:
+            dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
+        for node in engine.graph:
+            kstring_tracker.add_seen(lexlo(node))
+        logger.info(
+            f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra) - len(kstring_tracker.seen)} kmers left')
+        graph_idx += 1
     logger.info('No kmers remaining')
