@@ -52,6 +52,7 @@ def main(args):
     if not input_graph.is_file():
         raise Exception(f'Input cortex graph ({input_graph}) does not exist')
 
+    logger.info(f'Slurping cortex graph: {input_graph}')
     ra = SlurpedRandomAccess.from_handle(open(input_graph, 'rb'))
     if args.initial_contigs:
         kstring_tracker = load_initial_kmers(ra, args.initial_contigs)
@@ -61,8 +62,8 @@ def main(args):
     for initial_kmer_string in kstring_tracker.strings_not_seen():
         graph_id = f'g{graph_idx}'
         subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
-        logger.info(f'Building graph {graph_idx} and writing to: {subgraph_path}')
 
+        logger.info(f'Traversing graph {graph_idx}')
         engine = Engine(
             ra,
             orientation=EngineTraversalOrientation.both,
@@ -70,6 +71,8 @@ def main(args):
             logging_interval=90
         )
         engine.traverse_from(str(initial_kmer_string))
+
+        logger.info(f'Writing graph {graph_idx} to: {subgraph_path}')
         with open(subgraph_path, 'wb') as out_fh:
             dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
         for node in engine.graph:
