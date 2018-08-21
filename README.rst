@@ -6,7 +6,7 @@ abeona
 .. contents:: **Table of Contents**
     :backlinks: none
 
-abeona v0.18.1
+abeona v0.18.2
 
 Installation
 ------------
