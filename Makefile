@@ -3,7 +3,7 @@ PYTHON = $(ENV) python
 PYTEST = $(ENV) pytest
 
 test:
-	$(PYTEST) --cov abeona tests
+	tox
 
 setup:
 	scripts/setup
