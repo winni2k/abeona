@@ -8,7 +8,9 @@ from cortexpy.graph.parser.random_access import SlurpedRandomAccess
 from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
 from cortexpy.graph.traversal.engine import Engine
 from cortexpy.utils import lexlo
+import progressbar
 
+progressbar.streams.wrap_stderr()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('abeona.subgraphs')
 
@@ -59,25 +61,28 @@ def main(args):
     else:
         kstring_tracker = KmerStringTracker(unseen=ra)
     graph_idx = 0
-    for initial_kmer_string in kstring_tracker.strings_not_seen():
-        graph_id = f'g{graph_idx}'
-        subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
 
-        logger.info(f'Traversing graph {graph_idx}')
-        engine = Engine(
-            ra,
-            orientation=EngineTraversalOrientation.both,
-            max_nodes=None,
-            logging_interval=90
-        )
-        engine.traverse_from(str(initial_kmer_string))
+    with progressbar.ProgressBar(max_value=len(ra)) as bar:
+        for initial_kmer_string in kstring_tracker.strings_not_seen():
+            graph_id = f'g{graph_idx}'
+            subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
 
-        logger.info(f'Writing graph {graph_idx} to: {subgraph_path}')
-        with open(subgraph_path, 'wb') as out_fh:
-            dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
-        for node in engine.graph:
-            kstring_tracker.add_seen(lexlo(node))
-        logger.info(
-            f'Found subgraph with {len(engine.graph)} kmers - at most {len(ra) - len(kstring_tracker.seen)} kmers left')
-        graph_idx += 1
+            logger.debug('Traversing graph %s', graph_idx)
+            engine = Engine(
+                ra,
+                orientation=EngineTraversalOrientation.both,
+                max_nodes=None,
+                logging_interval=90
+            )
+            engine.traverse_from(str(initial_kmer_string))
+
+            logger.debug('Writing graph %s to: %s', graph_idx, subgraph_path)
+            with open(subgraph_path, 'wb') as out_fh:
+                dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
+            for node in engine.graph:
+                kstring_tracker.add_seen(lexlo(node))
+            logger.debug(
+                'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph), len(ra) - len(kstring_tracker.seen))
+            bar.update(len(kstring_tracker.seen))
+            graph_idx += 1
     logger.info('No kmers remaining')

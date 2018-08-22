@@ -39,6 +39,7 @@ setup(
     cortexpy >= 0.38.0
     snakemake
     pandas
+    progressbar2
     """.split('\n'),
 
     packages=find_packages('src'),
