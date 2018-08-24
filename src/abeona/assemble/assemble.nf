@@ -68,7 +68,7 @@ process pruneCortexGraphOfTips {
     """
 }
 
-process traverseCortexSubgraph {
+process traverseCortexSubgraphs {
     publishDir 'traversals'
 
     input:
@@ -108,7 +108,7 @@ process candidateTranscripts {
 
     output:
     set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into candidate_transcripts
-    file 'g*.transcripts.fa.gz' optional true into single_transcripts
+    set(gid, file('g*.transcripts.fa.gz')) optional true into single_transcripts
 
     """
     #!/usr/bin/env python3
@@ -139,11 +139,37 @@ process candidateTranscripts {
 
 }
 
+kallisto_ch = Channel.create()
+combine_before_kallisto1_ch = Channel.create()
+combine_before_kallisto2_ch = Channel.create()
+
+candidate_transcripts
+    .choice(
+        kallisto_ch,
+        combine_before_kallisto1_ch
+    ) { params.merge_candidates_before_kallisto ? 1 : 0 }
+
+nonkallisto_single_transcripts_ch = Channel.create()
+single_transcripts
+    .choice(nonkallisto_single_transcripts_ch, combine_before_kallisto2_ch) {
+    params.merge_candidates_before_kallisto ? 1 : 0
+}
+
+printit_ch = Channel.create()
+combine_before_kallisto_ch = Channel.create()
+
+merged_candidate_transcripts_ch = combine_before_kallisto1_ch
+    .mix(combine_before_kallisto2_ch)
+    .map{ g, f -> f }
+    .collectFile(name: 'merged_candidate_transcripts.fa.gz', sort: false)
+    .collectFile(name: 'merged_candidate_transcripts.fa.gz', sort: false, storeDir: 'merged_candidate_transcripts' )
+    .map{ f -> tuple(0, f)}
+
 process buildKallistoIndices {
     publishDir 'kallisto_indices'
 
     input:
-    set gid, file(fasta) from candidate_transcripts
+    set gid, file(fasta) from kallisto_ch.mix( merged_candidate_transcripts_ch )
 
     output:
     set(gid, file(fasta), file('*.ki')) optional true into kallisto_indices
@@ -250,8 +276,10 @@ process filter_transcripts {
     """
 
 }
-
-all_transcripts = filtered_transcripts.mix(single_transcripts).collectFile(storeDir: 'transcripts')
+tmp_ch = nonkallisto_single_transcripts_ch.map{ g,f -> f }
+all_transcripts = filtered_transcripts
+    .mix(tmp_ch)
+    .collectFile(storeDir: 'transcripts')
 
 process concatTranscripts {
     publishDir 'all_transcripts'

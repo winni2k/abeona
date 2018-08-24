@@ -60,6 +60,7 @@ class AbeonaExpectation(object):
     traversal_dir = attr.ib(init=False)
     out_clean_tip_pruned = attr.ib(init=False)
     all_transcripts = attr.ib(init=False)
+    merged_candidate_transcripts = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
@@ -68,6 +69,7 @@ class AbeonaExpectation(object):
         self.out_clean_tip_pruned = self.out_clean.with_suffix(
             f'.min_tip_length_{self.prune_length}.ctx')
         self.traversal_dir = self.out_dir / 'traversals'
+        self.merged_candidate_transcripts = self.out_dir / 'merged_candidate_transcripts' / 'merged_candidate_transcripts.fa.gz'
         self.all_transcripts = self.out_dir / 'all_transcripts' / 'transcripts.fa.gz'
         self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
                           for i, _ in
@@ -107,8 +109,15 @@ class AbeonaExpectation(object):
     def has_out_all_transcripts(self, *seqs):
         expected_seqs = [lexlo(s) for s in seqs]
         with gzip.open(self.all_transcripts, 'rt') as fh:
-            seqs = list(SeqIO.parse(fh, 'fasta'))
-        assert sorted(expected_seqs) == sorted([str(lexlo(rec.seq)) for rec in seqs])
+            seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]
+        assert sorted(expected_seqs) == sorted(seqs)
+        return self
+
+    def has_merged_candidate_transcripts(self, *seqs):
+        expected_seqs = [lexlo(s) for s in seqs]
+        with gzip.open(self.merged_candidate_transcripts, 'rt') as fh:
+            seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]
+        assert sorted(expected_seqs) == sorted(seqs)
         return self
 
     def _has_kmers_in_graph(self, kmers, graph):
@@ -226,7 +235,9 @@ class TestAssemble(object):
 
         expect.has_out_all_transcripts('AAAT', 'ATCC')
 
-    def test_traverses_two_subgraphs_of_two_transcripts_into_four_transcripts(self, tmpdir):
+    @pytest.mark.parametrize('merge_candidates_before_kallisto', [True, False])
+    def test_traverses_two_subgraphs_of_two_transcripts_into_four_transcripts(self, tmpdir,
+                                                                              merge_candidates_before_kallisto):
         # given
         kmer_size = 3
         b = FastqBuilder(tmpdir / 'single.fq')
@@ -236,16 +247,19 @@ class TestAssemble(object):
         input_fastq = b.build()
 
         out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-unitig-coverage', 0]
+        if merge_candidates_before_kallisto:
+            args.append('--merge-candidates-before-kallisto')
 
         # when
-        AbeonaRunner().assemble('--fastx-single', input_fastq,
-                                '--kallisto-fastx-single', input_fastq,
-                                '--kallisto-fragment-length', 3,
-                                '--kallisto-sd', 0.1,
-                                '--bootstrap-samples', 100,
-                                '--out-dir', out_dir,
-                                '--kmer-size', kmer_size,
-                                '--min-unitig-coverage', 0)
+        AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir)
@@ -255,12 +269,19 @@ class TestAssemble(object):
         sg = expect.has_subgraph_with_kmers('AAA', 'AAT', 'AAC')
         sg.has_traversal().has_nodes('AAA', 'AAT', 'AAC')
         sg.has_candidate_transcripts('AAAT', 'AAAC')
-        sg.has_transcripts('AAAT', 'AAAC')
+        if not merge_candidates_before_kallisto:
+            sg.has_transcripts('AAAT', 'AAAC')
 
         sg = expect.has_subgraph_with_kmers('ATC', 'GGA', 'TCA')
         sg.has_traversal().has_nodes('ATC', 'GGA', 'TCA')
         sg.has_candidate_transcripts('ATCC', 'ATCA')
-        sg.has_transcripts('ATCC', 'ATCA')
+        if not merge_candidates_before_kallisto:
+            sg.has_transcripts('ATCC', 'ATCA')
+
+        if merge_candidates_before_kallisto:
+            expect.has_merged_candidate_transcripts('ATCC', 'ATCA', 'AAAT', 'AAAC')
+
+        expect.has_out_all_transcripts('AAAT', 'AAAC', 'ATCC', 'ATCA')
 
     def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
         # given
@@ -424,7 +445,9 @@ class TestMaxPaths(object):
 
 
 class TestInitialSeqsFasta(object):
-    def test_traverses_two_subgraphs_into_single_transcript(self, tmpdir):
+    @pytest.mark.parametrize('merge_candidates_before_kallisto', [True, False])
+    def test_traverses_two_subgraphs_into_single_transcript(self, tmpdir,
+                                                            merge_candidates_before_kallisto):
         # given
         kmer_size = 3
         sequences = ['AAAT', 'ATCC']
@@ -438,14 +461,11 @@ class TestInitialSeqsFasta(object):
         b = FastqBuilder(tmpdir / 'single.fq')
         for seq in sequences:
             b.with_seq(seq)
+            b.with_seq(seq)
         input_fastq = b.build()
 
         expected_kmers = [{'AAA', 'AAT'}, {'ATC', 'GGA'}]
         all_expected_kmers = list(itertools.chain(*expected_kmers))
-
-        expected_subgraph_sequences = [['AAAT']]
-        expected_subgraph_kmers = [{'AAA', 'AAT'}]
-        expected_subgraph_aligned_kmers = [{'AAA', 'AAT'}, {'ATC', 'TCC'}]
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--initial-contigs', inital_contigs_fasta,
@@ -456,7 +476,10 @@ class TestInitialSeqsFasta(object):
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
-                '--min-unitig-coverage', 0, ]
+                '--min-unitig-coverage', 0,
+                ]
+        if merge_candidates_before_kallisto:
+            args.append('--merge-candidates-before-kallisto')
 
         # when
         AbeonaRunner().assemble(*args)
@@ -466,9 +489,13 @@ class TestInitialSeqsFasta(object):
         expect.has_out_graph_with_kmers(*all_expected_kmers)
         expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
 
-        for sg_id in range(1):
-            sg_expect = expect.has_subgraph_with_kmers(*expected_subgraph_kmers[sg_id])
-            sg_expect.has_traversal() \
-                .has_nodes(*expected_subgraph_aligned_kmers[sg_id])
-            sg_expect.has_transcripts(*expected_subgraph_sequences[sg_id])
-            expect.has_n_subgraphs(1)
+        sg_expect = expect.has_subgraph_with_kmers('AAA', 'AAT')
+        sg_expect.has_traversal() \
+            .has_nodes('AAA', 'AAT')
+        sg_expect.has_transcripts('AAAT')
+
+        if merge_candidates_before_kallisto:
+            expect.has_merged_candidate_transcripts('AAAT')
+
+        expect.has_n_subgraphs(1)
+        expect.has_out_all_transcripts('AAAT')

@@ -31,8 +31,8 @@ def assemble_main(argv):
     parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2)
     parser.add_argument('-k', '--kmer-size', default=47)
     parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes')
-    parser.add_argument('-q', '--quiet', action='store_true', default=False)
-    parser.add_argument('--resume', action='store_true', default=False)
+    parser.add_argument('-q', '--quiet', action='store_true')
+    parser.add_argument('--resume', action='store_true')
 
     parser.add_argument('--fastx-forward', help='Forward sequences in FASTA/FASTQ format',
                         required=False)
@@ -49,6 +49,7 @@ def assemble_main(argv):
 
     group = parser.add_argument_group('candidate transcript creation')
     group.add_argument('--max-paths-per-subgraph', type=int, default=0)
+    group.add_argument('--merge-candidates-before-kallisto', action='store_true')
 
     group = parser.add_argument_group('kallisto arguments',
                                       description='Arguments passed directly on to kallisto')
