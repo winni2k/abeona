@@ -142,7 +142,7 @@ def make_file_paths_absolute(args):
         file = getattr(args, file_arg)
         if file is not None:
             file = Path(file)
-            assert file.is_file()
+            assert file.is_file(), f'Not a file: {file}'
             file = file.absolute()
-            assert file.is_file()
+            assert file.is_file(), f'Not a file: {file}'
             setattr(args, file_arg, str(file))
