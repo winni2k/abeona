@@ -1,7 +1,7 @@
 abeona
 ======
 
-abeona v0.22.0
+abeona v0.22.1
 
 Installation
 ------------
