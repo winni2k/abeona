@@ -22,14 +22,13 @@ setup(
     license='Apache-2.0',
 
     classifiers=[
-        'Development Status :: 4 - Beta',
-        'Intended Audience :: Developers',
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
+        'Programming Language :: Python :: 3.7',
     ],
     entry_points={
         'console_scripts': ['abeona=abeona.__main__:main'],
