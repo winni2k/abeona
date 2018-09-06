@@ -3,6 +3,8 @@ abeona
 
 abeona v0.22.2
 
+A simple transcriptome assembler based on kallisto and Cortex graphs.
+
 Installation
 ------------
 
