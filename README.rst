@@ -8,42 +8,23 @@ A simple transcriptome assembler based on kallisto and Cortex graphs.
 Installation
 ------------
 
-It is recommended to install abeona and its dependencies into a
-`conda <https://conda.io/miniconda.html>`_ environment.
+The easiest way to install abeona is into a `conda <https://conda.io/miniconda.html>`_ environment.
 
-Conda dependencies
-~~~~~~~~~~~~~~~~~~
-
-At present, abeona depends on the following conda packages:
-
-- zlib
-- nextflow
-- kallisto
-
-Manually installable dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Furthermore, abeona needs a working version of `Mccortex <https://github.com/mcveanlab/mccortex>`_
-to be installed in the PATH:
+After activating the conda environment, run:
 
 .. code-block:: bash
 
-    git clone --recursive https://github.com/mcveanlab/mccortex
-    cd mccortex
-    make all MAXK=31
-    make all MAXK=63
-    # copy all files in bin to a directory in your PATH
+    conda install abeona -c conda-forge -c bioconda -c wkretzsch
 
-Abeona
-~~~~~~
+Running
+-------
 
-abeona is distributed on `PyPI <https://pypi.org>`_ as a universal
-wheel and is available on Linux/macOS and Windows, and supports
-Python 3.6+.
+The principle command is `abeona assemble`. This command assembles transcripts from cleaned
+short-read RNA-seq reads in FASTA or FASTQ format. For more information, see:
 
 .. code-block:: bash
 
-    $ pip install abeona
+    abeona assemble --help
 
 License
 -------
