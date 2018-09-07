@@ -19,7 +19,7 @@ After activating the conda environment, run:
 Running
 -------
 
-The principle command is `abeona assemble`. This command assembles transcripts from cleaned
+The principal command is `abeona assemble`. This command assembles transcripts from cleaned
 short-read RNA-seq reads in FASTA or FASTQ format. For more information, see:
 
 .. code-block:: bash
