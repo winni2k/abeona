@@ -36,7 +36,6 @@ setup(
 
     install_requires="""
     cortexpy >= 0.41.0
-    snakemake
     pandas
     progressbar2
     """.split('\n'),

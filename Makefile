@@ -1,7 +1,7 @@
 ENV = pipenv run
 PYTHON = $(ENV) python
 PYTEST = $(ENV) pytest
-TEST_ARGS?=''
+TEST_ARGS?='tests'
 
 test:
 	tox $(TEST_ARGS)
@@ -31,7 +31,7 @@ upload:
 	$(ENV) twine upload dist/*
 
 deploy: check_git_dirty
-	$(MAKE) test TEST_ARGS='-r'
+	$(MAKE) test TEST_ARGS='-r tests'
 	$(MAKE) build
 	$(MAKE) upload
 
