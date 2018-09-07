@@ -1,7 +1,7 @@
 abeona
 ======
 
-abeona v0.23.0
+abeona v0.23.1
 
 A simple transcriptome assembler based on kallisto and Cortex graphs.
 
