@@ -14,7 +14,7 @@ After activating the conda environment, run:
 
 .. code-block:: bash
 
-    conda install abeona -c conda-forge -c bioconda -c wkretzsch
+    conda install abeona -c conda-forge -c bioconda
 
 Running
 -------
