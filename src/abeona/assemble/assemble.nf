@@ -123,10 +123,12 @@ process candidateTranscripts {
 
     fasta = 'g${gid}.candidate_transcripts.fa.gz'
     transcript = 'g${gid}.transcripts.fa.gz'
+    cortexpy_cmd = f'cortexpy traverse --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
+    if '$params.extra_start_kmer' != 'null':
+        cortexpy_cmd += ' --extra-start-kmer $params.extra_start_kmer'
     cmd = f'''
     set -o pipefail
-    cortexpy view traversal $graph --max-paths $params.max_paths_per_subgraph --graph-index ${gid} \
-           | gzip -c > {fasta}.tmp
+    {cortexpy_cmd} | gzip -c > {fasta}.tmp
     '''
     exitcode = subprocess.run(cmd, shell=True).returncode
     if exitcode == 0:

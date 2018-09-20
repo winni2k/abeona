@@ -499,3 +499,37 @@ class TestInitialSeqsFasta(object):
 
         expect.has_n_subgraphs(1)
         expect.has_out_all_transcripts('AAAT')
+
+    def test_with_extra_start_kmer_assembles_circular_graph_into_single_sequence(self, tmpdir):
+        # given
+        kmer_size = 3
+        sequences = ['CCCACCC']
+
+        inital_contigs_fasta = tmpdir / 'initial-contigs.fa'
+        SeqIO.write([SeqRecord(Seq('CCC'), id='0')], str(inital_contigs_fasta), 'fasta')
+
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for seq in sequences:
+            b.with_seq(seq)
+            b.with_seq(seq)
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--initial-contigs', inital_contigs_fasta,
+                '--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', len(sequences[0]),
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-unitig-coverage', 0,
+                '--extra-start-kmer', 'CAC'
+                ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_all_transcripts('CACCCA')

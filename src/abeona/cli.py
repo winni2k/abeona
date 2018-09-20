@@ -26,7 +26,8 @@ def main(argv=sys.argv):
 def assemble_main(argv):
     import argparse
     parser = argparse.ArgumentParser(description='Run abeona assembly pipeline.',
-                                     prog='abeona assemble')
+                                     prog='abeona assemble',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-o', '--out-dir', help='Output directory', required=True)
     parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2)
     parser.add_argument('-k', '--kmer-size', default=47)
@@ -41,6 +42,13 @@ def assemble_main(argv):
     parser.add_argument('--fastx-single', help='Single-end sequences in FASTA/FASTQ format',
                         required=False)
     parser.add_argument('--initial-contigs', help='Only start assembly from contigs in this FASTA',
+                        required=False)
+    parser.add_argument('--extra-start-kmer',
+                        help='Disconnect this k-mer from incoming k-mers before '
+                             'candidate transcript creation. '
+                             'This may be useful when assembling circular genomes. '
+                             'Best used with --initial-contigs to make sure the k-mer exists '
+                             'in the consistent cortexpy graph.',
                         required=False)
 
     group = parser.add_argument_group('graph traversal cleaning')
@@ -91,8 +99,6 @@ def assemble_main(argv):
     if args.resume:
         cmd += ' -resume'
     logger.info(cmd)
-    # if args.quiet:
-    #     cmd += ' --quiet'
     return subprocess.run(cmd, shell=True).returncode
 
 
