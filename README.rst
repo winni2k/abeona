@@ -1,6 +1,25 @@
 abeona
 ======
 
+.. start-badges
+
+.. list-table::
+    :stub-columns: 1
+
+    * - tests
+      - | |travis|
+    * - package
+      - | |commits-since|
+
+.. |travis| image:: https://travis-ci.org/winni2k/cortexpy.svg?branch=master
+    :alt: Travis-CI Build Status
+    :target: https://travis-ci.org/winni2k/abeona.svg?branch=master
+
+.. |commits-since| image:: https://img.shields.io/github/commits-since/winni2k/abeona/0.24.0.svg
+    :alt: Commits since latest release
+    :target: https://github.com/winni2k/abeona/compare/0.24.0...master
+
+
 abeona v0.24.0
 
 A simple transcriptome assembler based on kallisto and Cortex graphs.
