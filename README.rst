@@ -11,9 +11,9 @@ abeona
     * - package
       - | |commits-since|
 
-.. |travis| image:: https://travis-ci.org/winni2k/cortexpy.svg?branch=master
+.. |travis| image:: https://travis-ci.org/winni2k/abeona.svg?branch=master
     :alt: Travis-CI Build Status
-    :target: https://travis-ci.org/winni2k/abeona.svg?branch=master
+    :target: https://travis-ci.org/winni2k/abeona
 
 .. |commits-since| image:: https://img.shields.io/github/commits-since/winni2k/abeona/0.24.0.svg
     :alt: Commits since latest release
