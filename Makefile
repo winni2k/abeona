@@ -12,7 +12,6 @@ setup:
 benchmark:
 	$(PYTEST) --benchmark-autosave benchmark
 
-
 check_git_dirty:
 	git status --porcelain
 	test -z "$$(git status --porcelain)"

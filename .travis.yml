@@ -9,4 +9,4 @@ os:
 install:
 - scripts/bootstrap
 script:
-- make test
+- source activate test-environment && make test
