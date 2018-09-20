@@ -15,9 +15,9 @@ abeona
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/winni2k/abeona
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/winni2k/abeona/0.24.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/winni2k/abeona/v0.24.0.svg
     :alt: Commits since latest release
-    :target: https://github.com/winni2k/abeona/compare/0.24.0...master
+    :target: https://github.com/winni2k/abeona/compare/v0.24.0...master
 
 
 abeona v0.24.0
