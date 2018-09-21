@@ -127,6 +127,7 @@ process candidateTranscripts {
     if '$params.extra_start_kmer' != 'null':
         cortexpy_cmd += ' --extra-start-kmer $params.extra_start_kmer'
     cmd = f'''
+    #!/usr/bin/env bash
     set -o pipefail
     {cortexpy_cmd} | gzip -c > {fasta}.tmp
     '''
