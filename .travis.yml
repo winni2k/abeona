@@ -9,4 +9,5 @@ os:
 install:
 - scripts/bootstrap
 script:
+- source activate test-environment && conda list
 - source activate test-environment && make test
