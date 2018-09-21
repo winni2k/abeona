@@ -7,8 +7,7 @@ cache:
 os:
 - linux
 install:
-- scripts/bootstrap
+- source scripts/bootstrap
 script:
-- source activate test-environment
 - conda list
 - make test
