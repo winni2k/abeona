@@ -127,11 +127,10 @@ process candidateTranscripts {
     if '$params.extra_start_kmer' != 'null':
         cortexpy_cmd += ' --extra-start-kmer $params.extra_start_kmer'
     cmd = f'''
-    #!/usr/bin/env bash
     set -o pipefail
     {cortexpy_cmd} | gzip -c > {fasta}.tmp
     '''
-    exitcode = subprocess.run(cmd, shell=True).returncode
+    exitcode = subprocess.run(cmd, shell=True, executable='/bin/bash').returncode
     if exitcode == 0:
         shutil.move(f'{fasta}.tmp', fasta)
         if sum(1 for _ in parse(gzip.open(fasta, "rt"), 'fasta')) == 1:
