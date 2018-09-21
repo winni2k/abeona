@@ -35,7 +35,7 @@ setup(
     },
 
     install_requires="""
-    cortexpy >= 0.43.1
+    cortexpy >= 0.44.0
     pandas
     progressbar2
     """.split('\n'),
