@@ -5,6 +5,7 @@ from subprocess import check_call
 
 import attr
 import pytest
+import re
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -112,6 +113,12 @@ class AbeonaExpectation(object):
             seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]
         assert sorted(expected_seqs) == sorted(seqs)
         return self
+
+    def has_out_all_transcript_description_matching(self, regex):
+        with gzip.open(self.all_transcripts, 'rt') as fh:
+            descs = [rec.description for rec in SeqIO.parse(fh, 'fasta')]
+        desc_re = re.compile(regex)
+        assert any(desc_re.search(d) for d in descs)
 
     def has_merged_candidate_transcripts(self, *seqs):
         expected_seqs = [lexlo(s) for s in seqs]
@@ -574,3 +581,37 @@ class TestParametrizeFiltering:
             expect.has_out_all_transcripts('ACAACCC', 'ACAACGG')
         else:
             raise Exception
+
+
+class TestCandidateTranscriptAnnotation:
+    def test_estimates_abundances_of_two_transcripts_as_four(self, tmpdir):
+        # given
+        kmer_size = 3
+
+        b = FastqBuilder(tmpdir / 'single.fq')
+        [b.with_seq('ACAAC') for _ in range(8)]
+        [b.with_seq('AACCC') for _ in range(4)]
+        [b.with_seq('AACGG') for _ in range(4)]
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--estimated-count-threshold', 2,
+            '--fastx-single', input_fastq,
+            '--kallisto-fastx-single', input_fastq,
+            '--kallisto-fragment-length', 4,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 100,
+            '--out-dir', out_dir,
+            '--kmer-size', kmer_size,
+            '--min-unitig-coverage', 0,
+        ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_all_transcripts('ACAACCC', 'ACAACGG')
+        expect.has_out_all_transcript_description_matching('prop_bs_est_counts_ge_2.0=[\d\.]+;est_count=8')

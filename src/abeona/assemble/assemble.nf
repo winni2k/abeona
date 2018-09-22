@@ -243,18 +243,23 @@ process filter_transcripts {
     logging.basicConfig(level=log_level)
     logger = logging.getLogger('abeona.assembly.filter_transcripts')
 
-    def filter_and_annotate_contigs(filtered_counts, candidate_transcripts):
-        with gzip.open(str(candidate_transcripts), 'rt') as fh:
-            for record in SeqIO.parse(fh, "fasta"):
-                if record.id in filtered_counts.index:
-                    record.description = 'prop_bs_est_counts_ge_1={}'.format(filtered_counts.at[record.id])
-                    yield record
+    def filter_and_annotate_records(records, filtered_counts, abundance, est_count_threshold):
+        for record in records:
+            if record.id in filtered_counts.index:
+                record.description = f'prop_bs_est_counts_ge_{est_count_threshold}=' \
+                                     f'{filtered_counts.at[record.id]};est_count={abundance.at[record.id, "est_counts"]}'
+                yield record
+
     output = 'g${gid}.transcripts.fa.gz'
     Path(output).parent.mkdir(exist_ok=True)
 
-    bootstraps = []
+    abundance = '$kallisto_quant_dir/abundance.tsv'
+    abundance = pd.read_csv(abundance,  sep='\\t', dtype={'target_id': str, 'length': int})
+    abundance.set_index('target_id', inplace=True)
+
     input_abundance = [f'$kallisto_quant_dir/bs_abundance_{i}.tsv' for i in
                        range(int($params.bootstrap_samples))]
+    bootstraps = []
     for bs_abundance in input_abundance:
         bootstraps.append(
             pd.read_csv(bs_abundance, sep='\\t', dtype={'target_id': str, 'length': int}))
@@ -270,11 +275,15 @@ process filter_transcripts {
         f'Keeping contigs with >= {keep_prop} of bootstrapped est_counts >= {est_count_threshold}')
     logger.info(f'keeping {len(keep_counts)} out of {len(ge1_counts)} contigs.')
 
-    filtered_records = filter_and_annotate_contigs(keep_counts, '$candidates')
+    with gzip.open(str('$candidates'), 'rt') as fh:
+        filtered_records = filter_and_annotate_records(SeqIO.parse(fh, "fasta"),
+                                                       keep_counts,
+                                                       abundance,
+                                                       est_count_threshold)
 
-    logger.info(f'Writing filtered records to {output}')
-    with gzip.open(output, 'wt') as fh:
-        SeqIO.write(filtered_records, fh, "fasta")
+        logger.info(f'Writing filtered records to {output}')
+        with gzip.open(output, 'wt') as fh:
+            SeqIO.write(filtered_records, fh, "fasta")
     """
 
 }
