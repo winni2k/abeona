@@ -51,12 +51,15 @@ def assemble_main(argv):
                              'in the consistent cortexpy graph.',
                         required=False)
 
-    group = parser.add_argument_group('graph traversal cleaning')
-    group.add_argument('--min-tip-length', type=int, default=0)
-    group.add_argument('--min-unitig-coverage', type=int, default=4)
+    group = parser.add_argument_group('Graph traversal cleaning')
+    group.add_argument('--min-tip-length', type=int, default=0,
+                       help='Prune tips shorter than this value')
+    group.add_argument('--min-unitig-coverage', type=int, default=4,
+                       help="Prune unitigs with mean coverage below this value")
 
     group = parser.add_argument_group('candidate transcript creation')
-    group.add_argument('--max-paths-per-subgraph', type=int, default=0)
+    group.add_argument('--max-paths-per-subgraph', type=int, default=0,
+                       help='Ignore graphs that have more than this number of paths')
     group.add_argument('--merge-candidates-before-kallisto', action='store_true')
 
     group = parser.add_argument_group('kallisto arguments',
@@ -71,6 +74,14 @@ def assemble_main(argv):
                        help='Single-end sequences in FASTA/FASTQ format to use for quantification')
     group.add_argument('--kallisto-fragment-length', type=float)
     group.add_argument('--kallisto-sd', type=float)
+
+    group = parser.add_argument_group('Candidate transcript filtering')
+    group.add_argument('--estimated-count-threshold', type=float, default=1,
+                       help='Threshold over which the estimated transcript count from kallisto is '
+                            'counted towards keeping a transcript')
+    group.add_argument('--bootstrap-proportion-threshold', type=float, default=0.95,
+                       help="Proportion of bootstrap iterations for which a transcript's estimated "
+                            "counts must be above the --estimated-count-threshold")
 
     args = parser.parse_args(args=argv)
     make_file_paths_absolute(args)

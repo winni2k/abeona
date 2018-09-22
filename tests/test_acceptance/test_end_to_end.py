@@ -533,3 +533,44 @@ class TestInitialSeqsFasta(object):
         # then
         expect = AbeonaExpectation(out_dir)
         expect.has_out_all_transcripts('CACCCA')
+
+
+class TestParametrizeFiltering:
+    @pytest.mark.parametrize('estimated_count_threshold', [0, 5])
+    def test_with_bootstrap_count_threshold_3_only_returns_one_of_two_sequences(self, tmpdir,
+                                                                                estimated_count_threshold):
+        # given
+        kmer_size = 3
+
+        b = FastqBuilder(tmpdir / 'single.fq')
+        [b.with_seq('ACAAC') for _ in range(10)]
+        [b.with_seq('AACCC') for _ in range(8)]
+        [b.with_seq('AACGG') for _ in range(4)]
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--bootstrap-proportion-threshold', 1,
+            '--estimated-count-threshold', estimated_count_threshold,
+            '--fastx-single', input_fastq,
+            '--kallisto-fastx-single', input_fastq,
+            '--kallisto-fragment-length', 4,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 100,
+            '--out-dir', out_dir,
+            '--kmer-size', kmer_size,
+            '--min-unitig-coverage', 0,
+        ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        if estimated_count_threshold == 5:
+            expect.has_out_all_transcripts('ACAACCC')
+        elif estimated_count_threshold == 0:
+            expect.has_out_all_transcripts('ACAACCC', 'ACAACGG')
+        else:
+            raise Exception

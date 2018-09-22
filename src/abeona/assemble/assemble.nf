@@ -259,8 +259,8 @@ process filter_transcripts {
         bootstraps.append(
             pd.read_csv(bs_abundance, sep='\\t', dtype={'target_id': str, 'length': int}))
     bootstraps = pd.concat(bootstraps)
-    est_count_threshold = 1
-    keep_prop = 0.95
+    est_count_threshold = $params.estimated_count_threshold
+    keep_prop = $params.bootstrap_proportion_threshold
     ge1_counts = bootstraps.groupby('target_id')['est_counts'].aggregate(
         lambda x: np.sum(x >= est_count_threshold) / len(x))
 
