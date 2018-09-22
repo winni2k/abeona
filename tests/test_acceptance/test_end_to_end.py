@@ -17,7 +17,7 @@ from cortexpy.utils import lexlo
 class AbeonaRunner(object):
 
     def run(self, *args):
-        argv = ['python', '-mabeona'] + [str(a) for a in args]
+        argv = ['abeona'] + [str(a) for a in args]
         check_call(argv)
 
     def assemble(self, *args):
