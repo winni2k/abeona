@@ -198,6 +198,8 @@ process buildKallistoIndices {
 process kallistoQuant {
     publishDir 'kallisto_quant'
 
+    cpus params.jobs
+
     input:
     set gid, file(fasta), file(index) from kallisto_indices
 
@@ -208,7 +210,7 @@ process kallistoQuant {
     #!/usr/bin/env python3
     from subprocess import run
 
-    cmd = 'kallisto quant -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
+    cmd = 'kallisto quant --threads $params.jobs -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
     if '$params.kallisto_fastx_forward' != 'null':
         cmd += ' $params.kallisto_fastx_forward $params.kallisto_fastx_reverse'
     else:
