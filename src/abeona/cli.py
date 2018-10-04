@@ -56,8 +56,10 @@ def assemble_main(argv):
                        help='Prune tips shorter than this value')
     group.add_argument('--min-unitig-coverage', type=int, default=4,
                        help="Prune unitigs with mean coverage below this value")
+    group.add_argument('--prune-tips-with-mccortex', action='store_true',
+                       help="Use Mccortex instead of cortexpy to prune unitigs.")
 
-    group = parser.add_argument_group('candidate transcript creation')
+    group = parser.add_argument_group('Candidate transcript creation')
     group.add_argument('--max-paths-per-subgraph', type=int, default=0,
                        help='Ignore graphs that have more than this number of paths')
     group.add_argument('--merge-candidates-before-kallisto', action='store_true')

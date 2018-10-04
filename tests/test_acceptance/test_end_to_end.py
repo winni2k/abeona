@@ -290,7 +290,8 @@ class TestAssemble(object):
 
         expect.has_out_all_transcripts('AAAT', 'AAAC', 'ATCC', 'ATCA')
 
-    def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
+    @pytest.mark.parametrize('prune_tips_with_mccortex', [True, False])
+    def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir, prune_tips_with_mccortex):
         # given
         min_tip_length = 2
         b = FastqBuilder(tmpdir / 'single.fq')
@@ -315,6 +316,8 @@ class TestAssemble(object):
                 '--min-tip-length', min_tip_length,
                 '--min-unitig-coverage', 0,
                 '--quiet']
+        if prune_tips_with_mccortex:
+            args += ['--prune-tips-with-mccortex']
 
         # when
         AbeonaRunner().assemble(*args)
@@ -322,8 +325,11 @@ class TestAssemble(object):
         # then
         expect = AbeonaExpectation(out_dir, min_tip_length)
         expect.has_out_graph_with_kmers(*all_expected_kmers)
-        expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
-        expect.has_out_tip_pruned_raph_with_kmers(*all_expected_post_pruned_kmers)
+        if prune_tips_with_mccortex:
+            expect.has_out_clean_graph_with_kmers(*all_expected_post_pruned_kmers)
+        else:
+            expect.has_out_clean_graph_with_kmers(*all_expected_kmers)
+            expect.has_out_tip_pruned_raph_with_kmers(*all_expected_post_pruned_kmers)
 
         for sg_id in range(2):
             sg_expect = expect.has_subgraph_with_kmers(*expected_post_pruning_kmers[sg_id])

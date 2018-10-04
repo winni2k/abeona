@@ -40,20 +40,32 @@ process cleanCortexGraph {
     file 'full.clean.ctx' into clean_cortex_graphs
 
     """
+    MIN_TIP_LENGTH=0
+    if [ '$params.prune_tips_with_mccortex' == 'true' ]; then
+        MIN_TIP_LENGTH='$params.min_tip_length'
+    fi
     $params.mccortex clean $params.mccortex_args \
-        -T0 -U$params.min_unitig_coverage \
+        -T\$MIN_TIP_LENGTH -U$params.min_unitig_coverage \
         --out full.clean.ctx full.ctx
     """
 }
+
+prune_with_cortexpy_ch = Channel.create()
+pruned_by_mccortex_ch = Channel.create()
+clean_cortex_graphs
+    .choice(
+        prune_with_cortexpy_ch,
+        pruned_by_mccortex_ch
+    ) { params.prune_tips_with_mccortex ? 1 : 0 }
 
 process pruneCortexGraphOfTips {
     publishDir 'cortex_graph'
 
     input:
-    file graph from clean_cortex_graphs
+    file graph from prune_with_cortexpy_ch
 
     output:
-    file "full.clean.min_tip_length_${params.min_tip_length}.ctx" into pruned_cortex_graphs
+    file "full.clean.min_tip_length_${params.min_tip_length}.ctx" into pruned_by_cortexpy_ch
 
     """
     #!/usr/bin/env python3
@@ -72,7 +84,7 @@ process traverseCortexSubgraphs {
     publishDir 'traversals'
 
     input:
-    file graph from pruned_cortex_graphs
+    file graph from pruned_by_mccortex_ch.mix(pruned_by_cortexpy_ch)
 
     output:
     file '*.traverse.ctx' into traversals
