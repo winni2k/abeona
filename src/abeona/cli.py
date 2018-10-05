@@ -154,7 +154,7 @@ def validate_assemble_args(args, parser):
             raise parser.error('Required: --kallisto-fragment-length')
         if args.kallisto_sd is None:
             raise parser.error('Required: --kallisto-sd')
-    if args.jobs < args.kallisto_threads:
+    if int(args.jobs) < int(args.kallisto_threads):
         raise parser.error('--jobs needs to be greater or equal to --kallisto-threads')
 
 
