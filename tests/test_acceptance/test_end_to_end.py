@@ -1,11 +1,11 @@
 import gzip
 import itertools
+import re
 from pathlib import Path
 from subprocess import check_call
 
 import attr
 import pytest
-import re
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -62,6 +62,7 @@ class AbeonaExpectation(object):
     out_clean_tip_pruned = attr.ib(init=False)
     all_transcripts = attr.ib(init=False)
     merged_candidate_transcripts = attr.ib(init=False)
+    skipped_subgraphs = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
@@ -75,6 +76,7 @@ class AbeonaExpectation(object):
         self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
                           for i, _ in
                           enumerate(self.traversal_dir.glob(f'g*.traverse.ctx'))]
+        self.skipped_subgraphs = self.out_dir / 'skipped_subgraphs' / 'skipped_subgraphs.txt'
 
     def has_subgraph(self, sg_id):
         return AbeonaSubgraphExpectation(self.out_dir, sg_id)
@@ -126,6 +128,9 @@ class AbeonaExpectation(object):
             seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]
         assert sorted(expected_seqs) == sorted(seqs)
         return self
+
+    def has_n_missing_subgraphs(self, n):
+        assert 1 == len(self.skipped_subgraphs.read_text().splitlines())
 
     def _has_kmers_in_graph(self, kmers, graph):
         with open(graph, 'rb') as fh:
@@ -291,7 +296,8 @@ class TestAssemble(object):
         expect.has_out_all_transcripts('AAAT', 'AAAC', 'ATCC', 'ATCA')
 
     @pytest.mark.parametrize('prune_tips_with_mccortex', [True, False])
-    def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir, prune_tips_with_mccortex):
+    def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir,
+                                                                       prune_tips_with_mccortex):
         # given
         min_tip_length = 2
         b = FastqBuilder(tmpdir / 'single.fq')
@@ -446,6 +452,7 @@ class TestMaxPaths(object):
         expect = AbeonaExpectation(out_dir)
         expect.has_out_graph_with_kmers('ATC', 'GGA', 'AAA', 'AAT', 'AAC')
         expect.has_out_clean_graph_with_kmers('ATC', 'GGA', 'AAA', 'AAT', 'AAC')
+        expect.has_out_all_transcripts('ATCC')
 
         # correct graph
         sg_expect = expect.has_subgraph_with_kmers('ATC', 'GGA')
@@ -453,8 +460,9 @@ class TestMaxPaths(object):
         sg_expect.has_transcripts('ATCC')
 
         # graph with too many paths
-        expect = expect.has_subgraph_with_kmers('AAA', 'AAC', 'AAT')
-        expect.has_no_transcripts()
+        skipped_expect = expect.has_subgraph_with_kmers('AAA', 'AAC', 'AAT')
+        skipped_expect.has_no_transcripts()
+        expect.has_n_missing_subgraphs(1)
 
 
 class TestInitialSeqsFasta(object):
@@ -620,4 +628,5 @@ class TestCandidateTranscriptAnnotation:
         # then
         expect = AbeonaExpectation(out_dir)
         expect.has_out_all_transcripts('ACAACCC', 'ACAACGG')
-        expect.has_out_all_transcript_description_matching('prop_bs_est_counts_ge_2.0=[\d\.]+;est_count=8')
+        expect.has_out_all_transcript_description_matching(
+            'prop_bs_est_counts_ge_2.0=[\d\.]+;est_count=8')

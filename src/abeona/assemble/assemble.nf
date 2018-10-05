@@ -121,6 +121,7 @@ process candidateTranscripts {
     output:
     set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into candidate_transcripts
     set(gid, file('g*.transcripts.fa.gz')) optional true into single_transcripts
+    set(gid, file('g*.candidate_transcripts.fa.gz.skipped'), file(graph)) optional true into skipped_subgraphs_ch
 
     """
     #!/usr/bin/env python3
@@ -149,9 +150,17 @@ process candidateTranscripts {
             shutil.move(fasta, transcript)
     elif exitcode != CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
         exit(exitcode)
+    else:
+        shutil.move(f'{fasta}.tmp', f'{fasta}.skipped')
     """
 
 }
+
+skipped_subgraphs_ch
+    //.collectFile(name: 'skipped_subgraphs.txt', newLine: true, keepHeader: true, storeDir: 'skipped_subgraphs')
+    .collectFile(storeDir: 'skipped_subgraphs'){ item ->
+        [ 'skipped_subgraphs.txt', item.join('\t')  + '\n' ]
+    }
 
 kallisto_ch = Channel.create()
 combine_before_kallisto1_ch = Channel.create()
