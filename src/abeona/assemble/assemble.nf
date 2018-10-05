@@ -219,7 +219,7 @@ process buildKallistoIndices {
 process kallistoQuant {
     publishDir 'kallisto_quant'
 
-    cpus params.jobs
+    cpus params.kallisto_threads
 
     input:
     set gid, file(fasta), file(index) from kallisto_indices

@@ -76,6 +76,9 @@ def assemble_main(argv):
                        help='Single-end sequences in FASTA/FASTQ format to use for quantification')
     group.add_argument('--kallisto-fragment-length', type=float)
     group.add_argument('--kallisto-sd', type=float)
+    group.add_argument('--kallisto-threads', type=int, default=2,
+                       help='Number of logical cores to assign to a single kallisto quant job. '
+                            'Needs to be less than or equal to --jobs')
 
     group = parser.add_argument_group('Candidate transcript filtering')
     group.add_argument('--estimated-count-threshold', type=float, default=1,
@@ -88,6 +91,7 @@ def assemble_main(argv):
     args = parser.parse_args(args=argv)
     make_file_paths_absolute(args)
     validate_assemble_args(args, parser)
+
 
     from pathlib import Path
     import json
@@ -150,6 +154,8 @@ def validate_assemble_args(args, parser):
             raise parser.error('Required: --kallisto-fragment-length')
         if args.kallisto_sd is None:
             raise parser.error('Required: --kallisto-sd')
+    if args.jobs < args.kallisto_threads:
+        raise parser.error('--jobs needs to be greater or equal to --kallisto-threads')
 
 
 def make_file_paths_absolute(args):
