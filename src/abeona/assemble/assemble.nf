@@ -49,8 +49,8 @@ process cleanCortexGraph {
     fi
     $params.mccortex clean $params.mccortex_args \
         -T\$MIN_TIP_LENGTH -U$params.min_unitig_coverage \
-        --out full.clean.ctx full.ctx \
-        --threads $params.jobs
+        --threads $params.jobs \
+        --out full.clean.ctx full.ctx
     """
 }
 
