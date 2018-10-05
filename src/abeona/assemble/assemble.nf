@@ -5,6 +5,8 @@ println params
 process fullCortexGraph {
     publishDir 'cortex_graph'
 
+    cpus params.jobs
+
     output:
     file 'full.ctx' into full_cortex_graphs
 
@@ -17,7 +19,7 @@ process fullCortexGraph {
         '$params.mccortex', 'build', '$params.mccortex_args',
         '--kmer', '$params.kmer_size',
         '--sample', 'abeona',
-        # '--threads', threads,
+        '--threads', '$params.jobs',
     ]
     if '$params.fastx_forward' != 'null':
         cmd += ['--seq2', '$params.fastx_forward:$params.fastx_reverse']
@@ -32,6 +34,7 @@ process fullCortexGraph {
 
 process cleanCortexGraph {
     publishDir 'cortex_graph'
+    cpus params.jobs
 
     input:
     file 'full.ctx' from full_cortex_graphs
@@ -46,7 +49,8 @@ process cleanCortexGraph {
     fi
     $params.mccortex clean $params.mccortex_args \
         -T\$MIN_TIP_LENGTH -U$params.min_unitig_coverage \
-        --out full.clean.ctx full.ctx
+        --out full.clean.ctx full.ctx \
+        --threads $params.jobs
     """
 }
 
