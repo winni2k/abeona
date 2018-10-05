@@ -11,7 +11,7 @@ with open('README.rst', 'r', encoding='utf-8') as f:
 
 setup(
     name='abeona',
-    version='0.29.2',
+    version='0.30.0',
     description='',
     long_description=readme,
     author='Warren W. Kretzschmar',
