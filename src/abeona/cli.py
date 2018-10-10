@@ -62,7 +62,6 @@ def assemble_main(argv):
     group = parser.add_argument_group('Candidate transcript creation')
     group.add_argument('--max-paths-per-subgraph', type=int, default=0,
                        help='Ignore graphs that have more than this number of paths')
-    group.add_argument('--merge-candidates-before-kallisto', action='store_true')
 
     group = parser.add_argument_group('kallisto arguments',
                                       description='Arguments passed directly on to kallisto')

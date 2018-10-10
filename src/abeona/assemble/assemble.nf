@@ -123,8 +123,8 @@ process candidateTranscripts {
     set gid, file(graph) from gid_traversals
 
     output:
-    set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into candidate_transcripts
-    set(gid, file('g*.transcripts.fa.gz')) optional true into single_transcripts
+    set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into candidate_transcripts_ch
+    set(gid, file('g*.transcripts.fa.gz')) optional true into nonkallisto_single_transcripts_ch
     set(gid, file('g*.candidate_transcripts.fa.gz.skipped'), file(graph)) optional true into skipped_subgraphs_ch
 
     """
@@ -170,36 +170,128 @@ kallisto_ch = Channel.create()
 combine_before_kallisto1_ch = Channel.create()
 combine_before_kallisto2_ch = Channel.create()
 
-candidate_transcripts
-    .choice(
-        kallisto_ch,
-        combine_before_kallisto1_ch
-    ) { params.merge_candidates_before_kallisto ? 1 : 0 }
 
-nonkallisto_single_transcripts_ch = Channel.create()
-single_transcripts
-    .choice(nonkallisto_single_transcripts_ch, combine_before_kallisto2_ch) {
-    params.merge_candidates_before_kallisto ? 1 : 0
+
+concat_candidate_transcripts_ch = Channel.create()
+separate_candidate_transcripts_ch = Channel.create()
+
+candidate_transcripts_ch
+    .separate(concat_candidate_transcripts_ch, separate_candidate_transcripts_ch) {
+        a -> [a[1], a]
+    }
+
+
+
+process concatCandidateTranscripts {
+    publishDir 'all_candidate_transcripts'
+
+    input:
+    file inputs from concat_candidate_transcripts_ch.collect()
+
+    output:
+    file 'candidate_transcripts.fa.gz' into all_candidate_transcripts_ch
+
+    """
+    cat $inputs > candidate_transcripts.fa.gz
+    """
 }
 
-printit_ch = Channel.create()
-combine_before_kallisto_ch = Channel.create()
 
-merged_candidate_transcripts_ch = combine_before_kallisto1_ch
-    .mix(combine_before_kallisto2_ch)
-    .map{ g, f -> f }
-    .collectFile(name: 'merged_candidate_transcripts.fa.gz', sort: false)
-    .collectFile(name: 'merged_candidate_transcripts.fa.gz', sort: false, storeDir: 'merged_candidate_transcripts' )
-    .map{ f -> tuple(0, f)}
+process remapBeforeKallisto {
+    publishDir 'reads_mapped_to_candidates'
+
+    cpus params.jobs
+
+    input:
+    file('candidate_transcripts.fa.gz') from all_candidate_transcripts_ch.view()
+
+    output:
+    set file('sorted.bam'), file('sorted.bam.bai') into sorted_remapped_bams_ch
+
+    """
+    if [ '$params.fastx_single' == 'null' ]; then
+        READS='$params.fastx_forward $params.fastx_reverse'
+    else
+        READS='$params.fastx_single'
+    fi
+
+    gzip -dc candidate_transcripts.fa.gz > ref.fa
+    bwa index ref.fa
+    bwa mem -k $params.kmer_size -t $params.jobs ref.fa \$READS \
+        | samtools view -h -F 4 \
+        | samtools sort \
+        | samtools view -b -o sorted.bam
+    samtools index sorted.bam
+    """
+}
+
+process splitRemappedReadsIntoSubgraphs {
+    publishDir 'reads_mapped_to_candidates_by_subgraph'
+
+    input:
+    set file(bam), file(bai) from sorted_remapped_bams_ch.view()
+
+    output:
+    file 'g*.bam' into remapped_reads_ch
+
+    """
+    #!/usr/bin/env python3
+    import pysam
+    import re
+    import collections
+
+    samfile = pysam.AlignmentFile('$bam', "rb")
+    subgraph_ref = collections.defaultdict(set)
+    pattern = re.compile('(g\\d+)')
+    print(samfile.references)
+    for ref in samfile.references:
+        subgraph_ref[pattern.match(ref)[1]].add(ref)
+    for sg_ref, refs in subgraph_ref.items():
+        with pysam.AlignmentFile(f"{sg_ref}.bam", "wb", template=samfile) as out_bam:
+            for ref in refs:
+                for rec in samfile.fetch(ref):
+                    out_bam.write(rec)
+    """
+}
+
+remapped_reads_and_gid_ch = remapped_reads_ch
+    .flatten()
+    .map { file ->
+           def file_name = file.name.toString()
+           def match = file_name =~ /g(\d+)/
+           return tuple(match[0][1], file)
+     }
+
+
+process convertRemappedReadsToFasta{
+    publishDir 'reads_mapped_to_candidates_by_subgraph'
+
+    input:
+    set gid, file(bam) from remapped_reads_and_gid_ch.view()
+
+    output:
+    set gid, file('*.fa.gz') into remapped_fastas_ch
+
+    """
+    if [ '$params.fastx_single' == 'null' ]; then
+        samtools sort -n $bam | samtools fasta -1 g${gid}_1.fa -2 g${gid}_2.fa -
+        gzip g${gid}_2.fa
+    else
+        samtools fasta -0 g${gid}_1.fa $bam
+    fi
+    gzip g${gid}_1.fa
+    """
+}
+
 
 process buildKallistoIndices {
     publishDir 'kallisto_indices'
 
     input:
-    set gid, file(fasta) from kallisto_ch.mix( merged_candidate_transcripts_ch )
+    set gid, file(fasta) from separate_candidate_transcripts_ch
 
     output:
-    set(gid, file(fasta), file('*.ki')) optional true into kallisto_indices
+    set gid, file(fasta), file('*.ki') into kallisto_indices
 
     """
     #!/usr/bin/env python3
@@ -220,13 +312,15 @@ process buildKallistoIndices {
     """
 }
 
+
+
 process kallistoQuant {
     publishDir 'kallisto_quant'
 
     cpus params.kallisto_threads
 
     input:
-    set gid, file(fasta), file(index) from kallisto_indices
+    set gid, file(fasta), file(index), file('reads') from kallisto_indices.join(remapped_fastas_ch)
 
     output:
     set gid, file(fasta), file('g*') into kallisto_quants
@@ -237,11 +331,11 @@ process kallistoQuant {
 
     cmd = 'kallisto quant --threads $params.kallisto_threads -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
     if '$params.kallisto_fastx_forward' != 'null':
-        cmd += ' $params.kallisto_fastx_forward $params.kallisto_fastx_reverse'
+        cmd += ' reads*'
     else:
         cmd += (
             ' -l $params.kallisto_fragment_length -s $params.kallisto_sd'
-            ' --single $params.kallisto_fastx_single'
+            ' --single reads*'
         )
     print(cmd)
     run(cmd, check=True, shell=True)
@@ -314,9 +408,9 @@ process filter_transcripts {
     """
 
 }
-tmp_ch = nonkallisto_single_transcripts_ch.map{ g,f -> f }
+
 all_transcripts = filtered_transcripts
-    .mix(tmp_ch)
+    .mix(nonkallisto_single_transcripts_ch.map{ g,f -> f })
     .collectFile(storeDir: 'transcripts')
 
 process concatTranscripts {
