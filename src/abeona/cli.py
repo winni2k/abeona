@@ -1,5 +1,4 @@
 import logging
-import subprocess
 import sys
 
 logger = logging.getLogger('abeona')
@@ -94,6 +93,7 @@ def assemble_main(argv):
 
     from pathlib import Path
     import json
+    import subprocess
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)

@@ -209,7 +209,7 @@ process remapBeforeKallisto {
     set file('sorted.bam'), file('sorted.bam.bai') into sorted_remapped_bams_ch
 
     """
-    if [ '$params.fastx_single' == 'null' ]; then
+    if [ '$params.kallisto_fastx_single' == 'null' ]; then
         READS='$params.fastx_forward $params.fastx_reverse'
     else
         READS='$params.fastx_single'
@@ -273,7 +273,7 @@ process convertRemappedReadsToFasta{
     set gid, file('*.fa.gz') into remapped_fastas_ch
 
     """
-    if [ '$params.fastx_single' == 'null' ]; then
+    if [ '$params.kallisto_fastx_single' == 'null' ]; then
         samtools sort -n $bam | samtools fasta -1 g${gid}_1.fa -2 g${gid}_2.fa -
         gzip g${gid}_2.fa
     else
