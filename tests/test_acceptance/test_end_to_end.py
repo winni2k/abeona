@@ -220,14 +220,6 @@ class AbeonaSubgraphExpectation(object):
     def has_transcripts(self, *seq_strings):
         self._has_transcripts(*seq_strings, dir_name='transcripts', suffix='.transcripts.fa.gz')
 
-    def has_mapped_reads(self, *seq_strings):
-        self._has_reads(*seq_strings, dir_name='reads_mapped_to_candidates_by_subgraph',
-                        suffix='_1.fa.gz')
-
-    def has_mapped_second_reads(self, *seq_strings):
-        self._has_reads(*seq_strings, dir_name='reads_mapped_to_candidates_by_subgraph',
-                        suffix='_2.fa.gz')
-
     def has_no_transcripts(self):
         self.has_transcripts()
         return self
@@ -342,9 +334,6 @@ class TestAssemble(object):
         sg.has_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
                            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC')
 
-        sg.has_mapped_reads(*(['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT'] * 4
-                              + ['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC'] * 4))
-
         sg = expect.has_subgraph_with_kmers('AAAAAAAAAAAAAAAAAAAAAAAAAAATC',
                                             'AAAAAAAAAAAAAAAAAAAAAAAAAATCC',
                                             'AAAAAAAAAAAAAAAAAAAAAAAAAATCA')
@@ -355,9 +344,6 @@ class TestAssemble(object):
                                      'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
         sg.has_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAATCC',
                            'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
-
-        sg.has_mapped_reads(*(['AAAAAAAAAAAAAAAAAAAAAAAAAAATCC'] * 4
-                              + ['AAAAAAAAAAAAAAAAAAAAAAAAAAATCA'] * 4))
 
         expect.has_out_all_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
                                        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC',
@@ -404,8 +390,6 @@ class TestAssemble(object):
         sg = expect.has_subgraph(0)
         sg.has_candidate_transcripts(*expected_transcripts)
         sg.has_transcripts(*expected_transcripts)
-        sg.has_mapped_reads(*([read_pairs[0][0], read_pairs[1][0]] * 4))
-        sg.has_mapped_second_reads(*([read_pairs[0][1], read_pairs[1][1]] * 4))
 
         expect.has_out_all_transcripts(*expected_transcripts)
 
