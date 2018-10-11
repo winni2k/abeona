@@ -140,6 +140,7 @@ process candidateTranscripts {
 
     fasta = 'g${gid}.candidate_transcripts.fa.gz'
     transcript = 'g${gid}.transcripts.fa.gz'
+    skipped = f'{fasta}.skipped'
     cortexpy_cmd = f'cortexpy traverse --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
     if '$params.extra_start_kmer' != 'null':
         cortexpy_cmd += ' --extra-start-kmer $params.extra_start_kmer'
@@ -150,12 +151,15 @@ process candidateTranscripts {
     exitcode = subprocess.run(cmd, shell=True, executable='/bin/bash').returncode
     if exitcode == 0:
         shutil.move(f'{fasta}.tmp', fasta)
-        if sum(1 for _ in parse(gzip.open(fasta, "rt"), 'fasta')) == 1:
+        n_seqs = sum(1 for _ in parse(gzip.open(fasta, "rt"), 'fasta'))
+        if n_seqs == 0:
+            shutil.move(fasta, skipped)
+        elif n_seqs == 1:
             shutil.move(fasta, transcript)
     elif exitcode != CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
         exit(exitcode)
     else:
-        shutil.move(f'{fasta}.tmp', f'{fasta}.skipped')
+        shutil.move(f'{fasta}.tmp', skipped)
     """
 
 }
@@ -165,12 +169,6 @@ skipped_subgraphs_ch
     .collectFile(storeDir: 'skipped_subgraphs'){ item ->
         [ 'skipped_subgraphs.txt', item.join('\t')  + '\n' ]
     }
-
-kallisto_ch = Channel.create()
-combine_before_kallisto1_ch = Channel.create()
-combine_before_kallisto2_ch = Channel.create()
-
-
 
 concat_candidate_transcripts_ch = Channel.create()
 separate_candidate_transcripts_ch = Channel.create()

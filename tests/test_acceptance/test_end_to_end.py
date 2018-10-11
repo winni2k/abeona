@@ -136,6 +136,10 @@ class AbeonaExpectation(object):
         return self
 
     def has_out_all_transcripts(self, *seqs):
+        if len(seqs) == 0:
+            assert not self.all_transcripts.is_file()
+            return self
+        assert self.all_transcripts.is_file()
         expected_seqs = [lexlo(s) for s in seqs]
         with gzip.open(self.all_transcripts, 'rt') as fh:
             seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]
@@ -367,9 +371,9 @@ class TestAssemble(object):
         b = PairedFastqBuilder(tmpdir / 'forward.fq', tmpdir / 'reverse.fq')
         read_pairs = [
             ['AAAAAAAAAAAAAAAAAAAAAAAAAACTCAAAAAAAAAAAAAAAAAAAAAACCCC',
-                                       'CTCAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAAAAAAAAAAAAAAAAAAAAA'],
+             'CTCAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAAAAAAAAAAAAAAAAAAAAA'],
             ['AAAAAAAAAAAAAAAAAAAAAAAAAACACAAAAAAAAAAAAAAAAAAAAAACCCC',
-                                       'CACAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAAAAAAAAAAAAAAAAAAAAA']
+             'CACAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAAAAAAAAAAAAAAAAAAAAA']
         ]
         for _ in range(4):
             b.with_pair(*read_pairs[0])
@@ -573,6 +577,33 @@ class TestMaxPaths(object):
         skipped_expect = expect.has_subgraph_with_kmers('AAA', 'AAC', 'AAT')
         skipped_expect.has_no_transcripts()
         expect.has_n_missing_subgraphs(1)
+
+    def test_traverses_cycle_into_no_transcripts(self, tmpdir):
+        # given
+        kmer_size = 3
+        b = FastqBuilder(tmpdir / 'single.fq')
+        b.with_seqs('AAACAAA')
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-unitig-coverage', 0, ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_graph_with_kmers('AAA', 'AAC', 'ACA', 'CAA')
+        expect.has_out_clean_graph_with_kmers('AAA', 'AAC', 'ACA', 'CAA')
+
+        expect.has_out_all_transcripts()
 
 
 class TestInitialSeqsFasta(object):
