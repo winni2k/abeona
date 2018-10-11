@@ -203,7 +203,7 @@ process remapBeforeKallisto {
     cpus params.jobs
 
     input:
-    file('candidate_transcripts.fa.gz') from all_candidate_transcripts_ch.view()
+    file('candidate_transcripts.fa.gz') from all_candidate_transcripts_ch
 
     output:
     set file('sorted.bam'), file('sorted.bam.bai') into sorted_remapped_bams_ch
@@ -229,7 +229,7 @@ process splitRemappedReadsIntoSubgraphs {
     publishDir 'reads_mapped_to_candidates_by_subgraph'
 
     input:
-    set file(bam), file(bai) from sorted_remapped_bams_ch.view()
+    set file(bam), file(bai) from sorted_remapped_bams_ch
 
     output:
     file 'g*.bam' into remapped_reads_ch
@@ -267,7 +267,7 @@ process convertRemappedReadsToFasta{
     publishDir 'reads_mapped_to_candidates_by_subgraph'
 
     input:
-    set gid, file(bam) from remapped_reads_and_gid_ch.view()
+    set gid, file(bam) from remapped_reads_and_gid_ch
 
     output:
     set gid, file('*.fa.gz') into remapped_fastas_ch
