@@ -7,5 +7,6 @@ dependencies:
   - mccortex >=1.0
   - nextflow >=0.31.1
   - kallisto >=0.44.0
+  - samtools
   - bwa
   - tox

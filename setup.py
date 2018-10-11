@@ -38,6 +38,7 @@ setup(
     cortexpy >= 0.44.0
     pandas
     progressbar2
+    pysam
     """.split('\n'),
 
     packages=find_packages('src'),
