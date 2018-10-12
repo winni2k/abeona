@@ -118,7 +118,7 @@ process traverseCortexSubgraphs {
     #!/usr/bin/env python3
     from subprocess import run
 
-    cmd = 'python -m abeona subgraphs $graph . -m $params.memory'
+    cmd = 'abeona subgraphs $graph . -m $params.memory'
     if '$params.initial_contigs' != 'null':
         cmd += ' --initial-contigs $params.initial_contigs'
     run(cmd, shell=True, check=True)
