@@ -2,7 +2,7 @@ import collections
 
 from hypothesis import given, strategies as strat
 
-from abeona.test.setudrivers import SubgraphTestDriver
+from abeona.test.drivers import SubgraphTestDriver
 
 SeqTup = collections.namedtuple('SeqTup', ['seq', 'kmers'])
 

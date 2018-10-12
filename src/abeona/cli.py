@@ -10,6 +10,7 @@ def main(argv=sys.argv):
     subcommands = {
         'assemble': assemble_main,
         'subgraphs': subgraphs_main,
+        'reads': reads_main,
     }
     parser = argparse.ArgumentParser(description=f'abeona version {__version__}', prog='abeona')
     parser.add_argument('-v', '--version', action='version',
@@ -90,7 +91,6 @@ def assemble_main(argv):
     make_file_paths_absolute(args)
     validate_assemble_args(args, parser)
 
-
     from pathlib import Path
     import json
     import subprocess
@@ -132,6 +132,35 @@ def subgraphs_main(argv):
     args = parser.parse_args(argv)
 
     from .subgraphs import main
+    return main(args)
+
+
+def reads_main(argv):
+    import argparse
+    parser = argparse.ArgumentParser(description='Assign reads to cortex graphs.',
+                                     prog='abeona reads')
+    parser.add_argument('graph_list',
+                        help="""
+                        Tab delimited text file with two columns and optional header line.
+                        All lines starting with '#' are ignored. For example:
+                        ```
+                        # prefix\tgraph
+                        out_dir/g1\tg1.ctx
+                        out_dir/g2\tg2.ctx
+                        ```
+                        """)
+    parser.add_argument('forward', help='Forward reads file in FASTA or FASTQ format.')
+    parser.add_argument('--reverse',
+                        help='Reverse reads file in FASTA or FASTQ format. '
+                             'Only specified if reads are paired',
+                        default=None)
+    parser.add_argument('--format', help='File format of input reads.',
+                        choices=['fasta', 'fastq'],
+                        required=True)
+
+    args = parser.parse_args(argv)
+
+    from .reads import main
     return main(args)
 
 

@@ -9,7 +9,7 @@ from Bio.SeqRecord import SeqRecord
 from cortexpy.test import builder
 
 from abeona.cli import main as abeona_main
-from .expectations import Traversals
+from .expectations import Traversals, Fastas, TraversalsAndFastas
 
 
 @attr.s(slots=True)
@@ -64,11 +64,21 @@ class ReadsTestDriver(object):
             raise ValueError(f'Could not find {item}')
 
     def run(self):
-        graphs = SubgraphTestDriver(self.tmpdir, self.builder).build().traversals
-        subprocess.run(f'cat {tmpdir}/*.fasta > {tmpdir}/combined.fasta', shell=True, check=True)
+        out_dir = self.tmpdir / 'abeona_reads'
+        traversal_expectation = SubgraphTestDriver(self.tmpdir, self.builder).run()
+        graphs = traversal_expectation.traversals
 
-        with open(tmpdir / 'subgraph_list.txt', 'w') as fh:
+        subprocess.run(f'cat {self.tmpdir}/*.fasta > {self.tmpdir}/combined.fasta', shell=True, check=True)
+
+        graph_list = self.tmpdir / 'subgraph_list.txt'
+        with open(graph_list, 'w') as fh:
+            fh.write('# prefix\tgraph\n')
             for graph in graphs:
-                fh.write(f'{graph.with_suffix()}')
+                fh.write(f'{out_dir/graph.stem}\t{graph}\n')
 
-        command = f'abeona reads {graph} {tmpdir}/combined.fasta '
+        command = f'abeona reads --format fasta {graph_list} {self.tmpdir}/combined.fasta'
+        abeona_main(command.split())
+
+        reads = list(Path(out_dir).glob('g*.fasta.gz'))
+
+        return TraversalsAndFastas(Fastas(reads), traversal_expectation)
