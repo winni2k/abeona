@@ -2,26 +2,16 @@
 
 println params
 
-process unzipReadsIntoFasta {
-    input:
-    val x from 1
 
-    output:
-    file('*.fa') into reads_fasta_ch
+reads_ch = Channel
+    .from(
+        params.kallisto_fastx_single,
+        params.kallisto_fastx_forward,
+        params.kallisto_fastx_reverse
+    )
+    .collect()
+    .map { it[0] == null ? [true, [file(it[1]), file(it[2])]] : [false, file(it[0])] }
 
-    """
-    [ '$params.kallisto_fastx_forward' != 'null' ] && \
-        seqtk seq -A $params.kallisto_fastx_forward > forward.fa
-    [ '$params.kallisto_fastx_reverse' != 'null' ] && \
-        seqtk seq -A $params.kallisto_fastx_reverse > reverse.fa
-    [ '$params.kallisto_fastx_single' != 'null' ] && \
-        seqtk seq -A $params.kallisto_fastx_single > single.fa
-
-
-
-    seqtk seq -A
-    """
-}
 
 process fullCortexGraph {
     publishDir 'cortex_graph'
@@ -134,7 +124,10 @@ traversals
            return tuple(match[0][1], file)
      }
     .groupTuple()
-    .set{ gid_traversals }
+    .into{gid_traversals;
+	  gid_traversals_for_subgraph_list1_ch;
+	  gid_traversals_for_subgraph_list2_ch;
+	  gid_traversals_for_assign_reads_ch }
 
 
 process candidateTranscripts {
@@ -195,7 +188,7 @@ process buildKallistoIndices {
     publishDir 'kallisto_indices'
 
     input:
-    set gid, file(fasta) from separate_candidate_transcripts_ch
+	set gid, file(fasta) from separate_candidate_transcripts_ch
 
     output:
     set gid, file(fasta), file('*.ki') into kallisto_indices
@@ -219,14 +212,73 @@ process buildKallistoIndices {
     """
 }
 
+process createSubgraphList {
+    publishDir 'subgraph_list'
+
+    input:
+    val(gids) from gid_traversals_for_subgraph_list1_ch
+	.map{it[0]}
+	.toSortedList()
+    val(graphs) from gid_traversals_for_subgraph_list2_ch
+	.toSortedList({ a, b -> a[0] <=> b[0] })
+        .flatten()
+	.collate(2)
+	.map{it[1]}
+        .collect()
+
+    output:
+	file('subgraph_list.txt') into subgraph_list_for_assignment_ch
+
+    """
+    #!/usr/bin/env python3
+    out = open('subgraph_list.txt', 'w')
+    out.write('#prefix\\tgraph\\n')
+    for gid, graph in zip([f'g{g}' for g in $gids], '${graphs.join(' ')}'.split()):
+        out.write(f'{gid}\\t{graph}\\n')
+    """
+}
+
+process assignReadsToSubgraphs {
+    publishDir 'reads_assigned_to_subgraphs'
+
+    input:
+    set is_paired, file('reads*') from reads_ch
+    file('subgraph_list.txt') from subgraph_list_for_assignment_ch
+
+    output:
+	file 'g*.fastq.gz' into assigned_reads_ch
+
+    """
+    if [ '$is_paired' == 'true' ]; then
+        abeona reads subgraph_list.txt reads1 --reverse reads2 --format fastq
+    else
+        abeona reads subgraph_list.txt reads --format fastq
+    fi
+    """
+}
+
+// Extract graph id and collect read pairs by gid
+gid_assigned_reads_ch = assigned_reads_ch
+    .flatten()
+    .toSortedList()
+    .flatten()
+    .map { file ->
+           def file_name = file.name.toString()
+           def match = file_name =~ /g(\d+).\d.fastq.gz$/
+           return tuple(match[0][1], file)
+    }
+    .groupTuple()
+
+
+
 process kallistoQuant {
     publishDir 'kallisto_quant'
 
     cpus params.kallisto_threads
 
     input:
-    file('reads') from reads_fasta_ch
-    set gid, file(fasta), file(index) from kallisto_indices
+    set gid, file('fasta'), file(index), file('reads') from kallisto_indices
+	.join(gid_assigned_reads_ch)
 
     output:
     set gid, file(fasta), file('g*') into kallisto_quants
@@ -236,7 +288,7 @@ process kallistoQuant {
     from subprocess import run
 
     cmd = 'kallisto quant --threads $params.kallisto_threads -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
-    if '$params.kallisto_fastx_forward' != 'null':
+    if '$params.kallisto_fastx_single' == 'null':
         cmd += ' $reads'
     else:
         cmd += (

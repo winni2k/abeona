@@ -82,3 +82,23 @@ License
 
 abeona is distributed under the terms of the
 `Apache License, Version 2.0 <https://choosealicense.com/licenses/apache-2.0>`_.
+
+
+Changelog
+---------
+
+v0.33.0
+~~~~~~~
+
+:Date: 2018-10-16
+
+New features
+............
+
+* Use ``abeona reads`` to assign reads to subgraphs before quantification of
+candidate transcripts with kallisto
+
+Fixes
+.....
+
+* Add missing conda dependency ``seqtk`` to ``environment.yml`` for travis CI
