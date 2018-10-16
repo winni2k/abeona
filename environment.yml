@@ -10,3 +10,4 @@ dependencies:
   - samtools
   - bwa
   - tox
+  - seqtk
