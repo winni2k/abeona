@@ -1,21 +1,100 @@
 import shutil
 import subprocess
+from collections import OrderedDict
+from logging import getLogger
 from pathlib import Path
 
 import attr
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from cortexpy.test import builder
+from cortexpy.test import runner
 
 from abeona.cli import main as abeona_main
 from .expectations import Traversals, Fastas, TraversalsAndFastas
+
+logger = getLogger()
+
+
+@attr.s(slots=True)
+class Mccortex:
+    kmer_size = attr.ib(3)
+    sequences = attr.ib(attr.Factory(OrderedDict))
+    sequence_pairs = attr.ib(attr.Factory(OrderedDict))
+    mccortex_bin = attr.ib('mccortex')
+
+    def assert_single_or_paired(self):
+        if len(self.sequences) > 0 and len(self.sequence_pairs) > 0:
+            raise NotImplementedError(
+                'Specifying both single and paired end reads to driver is not implemented')
+
+    @property
+    def is_paired(self):
+        self.assert_single_or_paired()
+        assert len(self.sequence_pairs) != 0 or len(self.sequences) != 0
+        return len(self.sequence_pairs) > 0
+
+    def with_kmer_size(self, kmer_size):
+        self.kmer_size = kmer_size
+        return self
+
+    def with_dna_sequence(self, sequence, *, name='sample_0'):
+        if name not in self.sequences:
+            self.sequences[name] = []
+        self.sequences[name].append([sequence])
+        return self
+
+    def with_dna_sequence_pair(self, sequence1, sequence2, name='sample_0'):
+        if name not in self.sequence_pairs:
+            self.sequence_pairs[name] = []
+        self.sequence_pairs[name].append([sequence1, sequence2])
+        return self
+
+    def build(self, tmpdir):
+        self.assert_single_or_paired()
+        if len(self.sequence_pairs) == 0:
+            sequences = self.sequences
+        else:
+            sequences = self.sequence_pairs
+
+        mccortex_args = f'build --force --sort --kmer {self.kmer_size}'
+        for name, dna_sequence_tuple_list in sequences.items():
+            mccortex_args += f' --sample {name}'
+            is_paired = len(dna_sequence_tuple_list[0]) == 2
+            fa1 = tmpdir / f'input.{name}.1.fasta'
+            fa2 = tmpdir / f'input.{name}.2.fasta'
+            fh2 = open(fa2, 'w')
+            with open(fa1, 'w') as fh1:
+                with open(fa2, 'w') as fh2:
+                    for tuple in dna_sequence_tuple_list:
+                        fh1.write(SeqRecord(Seq(tuple[0]), id='0', description='').format('fasta'))
+                        if is_paired:
+                            fh2.write(
+                                SeqRecord(Seq(tuple[1]), id='0', description='').format('fasta'))
+            if is_paired:
+                mccortex_args += f' -2 {fa1}:{fa2}'
+            else:
+                mccortex_args += f' -1 {fa1}'
+
+        output_graph = str(tmpdir.join('output.ctx'))
+        mccortex_args += f' {output_graph}'
+
+        ret = runner.Mccortex(self.kmer_size, mccortex_bin=self.mccortex_bin) \
+            .run(mccortex_args.split())
+        logger.debug('\n' + ret.stdout.decode())
+        logger.debug('\n' + ret.stderr.decode())
+
+        ret = runner.Mccortex(self.kmer_size, mccortex_bin=self.mccortex_bin) \
+            .view(output_graph)
+        logger.debug('\n' + ret.stdout.decode())
+
+        return output_graph
 
 
 @attr.s(slots=True)
 class SubgraphTestDriver(object):
     tmpdir = attr.ib()
-    builder = attr.ib(attr.Factory(builder.Mccortex))
+    builder = attr.ib(attr.Factory(Mccortex))
     initial_contigs = attr.ib(None)
 
     def __getattr__(self, item):
@@ -55,10 +134,10 @@ class SubgraphTestDriver(object):
 @attr.s(slots=True)
 class ReadsTestDriver(object):
     tmpdir = attr.ib()
-    builder = attr.ib(attr.Factory(builder.Mccortex))
+    builder = attr.ib(attr.Factory(Mccortex))
 
     def __getattr__(self, item):
-        if item in ['with_kmer_size', 'with_dna_sequence']:
+        if item in ['with_kmer_size', 'with_dna_sequence', 'with_dna_sequence_pair']:
             return getattr(self.builder, item)
         else:
             raise ValueError(f'Could not find {item}')
@@ -68,7 +147,12 @@ class ReadsTestDriver(object):
         traversal_expectation = SubgraphTestDriver(self.tmpdir, self.builder).run()
         graphs = traversal_expectation.traversals
 
-        subprocess.run(f'cat {self.tmpdir}/*.fasta > {self.tmpdir}/combined.fasta', shell=True, check=True)
+        for idx in [1, 2]:
+            subprocess.run(
+                f'cat {self.tmpdir}/*.{idx}.fasta > {self.tmpdir}/combined.{idx}.fasta',
+                shell=True,
+                check=True
+            )
 
         graph_list = self.tmpdir / 'subgraph_list.txt'
         with open(graph_list, 'w') as fh:
@@ -76,7 +160,9 @@ class ReadsTestDriver(object):
             for graph in graphs:
                 fh.write(f'{out_dir/graph.stem}\t{graph}\n')
 
-        command = f'abeona reads --format fasta {graph_list} {self.tmpdir}/combined.fasta'
+        command = f'abeona reads --format fasta {graph_list} {self.tmpdir}/combined.1.fasta'
+        if self.builder.is_paired:
+            command += f' --reverse {self.tmpdir}/combined.2.fasta'
         abeona_main(command.split())
 
         reads = list(Path(out_dir).glob('g*.fasta.gz'))

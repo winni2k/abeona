@@ -20,6 +20,9 @@ def main(argv=sys.argv):
     parser.add_argument('args', nargs=argparse.REMAINDER, help='sub-command arguments')
     args = parser.parse_args(argv[1:])
 
+    import warnings
+    from Bio import BiopythonWarning
+    warnings.simplefilter('ignore', BiopythonWarning)
     return subcommands[args.sub_command](args.args)
 
 

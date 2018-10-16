@@ -8,6 +8,6 @@ dependencies:
   - nextflow >=0.31.1
   - kallisto >=0.44.0
   - samtools
+  - seqtk
   - bwa
   - tox
-  - seqtk

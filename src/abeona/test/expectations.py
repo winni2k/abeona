@@ -69,10 +69,12 @@ class Traversals:
 
     def has_graph_with_kmers(self, *kmers):
         kmers = set(kmers)
+        tested_kmers = []
         for expect in self.traversal_expectations:
-            if kmers == set(lexlo(kmer_string) for kmer_string in expect.graph):
+            tested_kmers.append(sorted(expect.graph))
+            if sorted(kmers) == tested_kmers[-1]:
                 return expect
-        assert False
+        assert False, f'Could not find graph with kmers: {kmers}\nin: {tested_kmers}'
 
     def has_n_graphs(self, n):
         assert n == len(self.traversal_expectations)
@@ -83,12 +85,15 @@ class Traversals:
 class Fastas:
     fastas = attr.ib()
 
-    def has_fasta_with_prefix(self, stem):
-        for fasta in self.fastas:
-            if Path(fasta).with_suffix('').stem == stem:
+    def has_fastas_with_prefix(self, stem):
+        fastas = []
+        for fasta in sorted(self.fastas):
+            if Path(fasta).with_suffix('').stem.startswith(stem):
                 with gzip.open(fasta, 'rt') as fh:
-                    return Fasta(fh.read())
-        assert False, f'Could not find stem ({stem}) in fastas\n{self.fastas}'
+                    fastas.append(Fasta(fh.read()))
+        if len(fastas) == 0:
+            assert False, f'Could not find stem ({stem}) in fastas\n{self.fastas}'
+        return fastas
 
 
 @attr.s(slots=True)
@@ -96,16 +101,22 @@ class TraversalsAndFastas:
     fastas_expection = attr.ib()
     traversals_expectation = attr.ib()
 
-    def has_graph_with_kmers_and_mapped_reads(self, kmers, seqs):
+    def has_graph_with_kmers_and_mapped_reads(self, kmers, seqs, seqs2=None):
         graph = self.traversals_expectation.has_graph_with_kmers(*kmers).graph_path
         graph_stem = Path(graph).stem
 
-        fasta_expect = self.fastas_expection.has_fasta_with_prefix(graph_stem)
-        for seq in seqs:
-            fasta_expect.has_record(seq)
-        fasta_expect.has_n_records(len(seqs))
+        fasta_expects = self.fastas_expection.has_fastas_with_prefix(graph_stem)
+
+        seq_lists = [seqs]
+        if seqs2 is not None:
+            seq_lists.append(seqs2)
+        assert len(fasta_expects) == len(seq_lists), f'len({fasta_expects}) != len({seq_lists})'
+        for idx, seq_list in enumerate(seq_lists):
+            for seq in seq_list:
+                fasta_expects[idx].has_record(seq)
+            fasta_expects[idx].has_n_records(len(seq_list))
         return self
 
-    def has_n_graphs(self,n):
+    def has_n_graphs(self, n):
         self.traversals_expectation.has_n_graphs(n)
         return self
