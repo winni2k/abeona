@@ -90,12 +90,12 @@ Changelog
 v0.33.0
 ~~~~~~~
 
-:Date: 2018-10-16
+:Date: 2018-10-17
 
 New features
 ............
 
-* Use ``abeona reads`` to assign reads to subgraphs before quantification of
+* Use kmer mapping (``abeona reads``) to assign reads to subgraphs before quantification of
 candidate transcripts with kallisto
 
 Fixes
