@@ -196,14 +196,14 @@ class AbeonaSubgraphExpectation(object):
             assert expected_seq_string in seq_strings
         assert len(expected_seq_strings) == len(seqs)
 
-    def _has_reads(self, *expected_seq_strings, dir_name, suffix, id_check=True):
+    def _has_reads(self, *expected_seq_strings, dir_name, suffix, file_type='fastq'):
         reads = self.out_dir / dir_name / f'g{self.sg_id}{suffix}'
         if len(expected_seq_strings) == 0:
             assert not reads.is_file()
             return
         assert reads.is_file()
         with gzip.open(str(reads), 'rt') as fh:
-            seqs = list(SeqIO.parse(fh, 'fasta'))
+            seqs = list(SeqIO.parse(fh, file_type))
 
         seq_strings = [str(s.seq) for s in seqs]
         assert sorted(expected_seq_strings) == sorted(seq_strings)
@@ -211,6 +211,12 @@ class AbeonaSubgraphExpectation(object):
     def has_candidate_transcripts(self, *seq_strings):
         self._has_transcripts(*seq_strings, dir_name='candidate_transcripts',
                               suffix='.candidate_transcripts.fa.gz')
+        return self
+
+    def has_reads_assigned(self, reads, reads2=None):
+        self._has_reads(*reads, dir_name='reads_assigned_to_subgraphs', suffix='.1.fastq.gz')
+        if reads2 is not None:
+            self._has_reads(*reads2, dir_name='reads_assigned_to_subgraphs', suffix='.2.fastq.gz')
         return self
 
     def has_no_candidate_transcripts(self):
@@ -330,7 +336,8 @@ class TestAssemble(object):
                                      'AAAAAAAAAAAAAAAAAAAAAAAAAAAAC')
         sg.has_candidate_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
                                      'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', )
-
+        sg.has_reads_assigned(['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT'] * 4
+                              + ['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC'] * 4)
         sg.has_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
                            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC')
 
@@ -344,6 +351,8 @@ class TestAssemble(object):
                                      'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
         sg.has_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAATCC',
                            'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
+        sg.has_reads_assigned(['AAAAAAAAAAAAAAAAAAAAAAAAAAATCC'] * 4
+                              + ['AAAAAAAAAAAAAAAAAAAAAAAAAAATCA'] * 4)
 
         expect.has_out_all_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
                                        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC',
@@ -389,9 +398,53 @@ class TestAssemble(object):
         expect = AbeonaExpectation(out_dir)
         sg = expect.has_subgraph(0)
         sg.has_candidate_transcripts(*expected_transcripts)
+        sg.has_reads_assigned(['AAAAAAAAAAAAAAAAAAAAAAAAAACTCAAAAAAAAAAAAAAAAAAAAAACCCC',
+                               'AAAAAAAAAAAAAAAAAAAAAAAAAACACAAAAAAAAAAAAAAAAAAAAAACCCC'] * 4,
+                              ['CTCAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+                               'CACAAAAAAAAAAAAAAAAAAAAAACCCCAAAAAAAAAAAAAAAAAAAAAAAAAAA'] * 4)
         sg.has_transcripts(*expected_transcripts)
 
         expect.has_out_all_transcripts(*expected_transcripts)
+
+    def test_with_read_pairs_traverses_graph_of_two_transcripts_into_two_graphs(self, tmpdir):
+
+        # given
+        kmer_size = 5
+        b = PairedFastqBuilder(tmpdir / 'forward.fq', tmpdir / 'reverse.fq')
+        read_pairs = [
+            ['AAAAAC', 'AAAACC'],
+            ['AAAAAC', 'AAAACT'],
+            ['CCCCCT', 'CCCCTT'],
+            ['CCCCCT', 'CCCCTA'],
+        ]
+        for _ in range(4):
+            for rp in read_pairs:
+                b.with_pair(*rp)
+
+        forward, reverse = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-forward', forward,
+                '--fastx-reverse', reverse,
+                '--kallisto-fastx-forward', forward,
+                '--kallisto-fastx-reverse', reverse,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-unitig-coverage', 0]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        sg = expect.has_subgraph_with_kmers('AAAAA', 'AAAAC', 'AAACC', 'AAACT')
+        sg.has_reads_assigned(['AAAAAC'] * 8, ['AAAACC', 'AAAACT'] * 4)
+
+        sg = expect.has_subgraph_with_kmers('CCCCC', 'AGGGG', 'AAGGG', 'CCCTA')
+        sg.has_reads_assigned(['CCCCCT'] * 8, ['CCCCTT', 'CCCCTA'] * 4)
+
+        expect.has_out_all_transcripts('AAAAACC', 'AAAAACT', 'AAGGGGG', 'CCCCCTA')
 
     @pytest.mark.parametrize('prune_tips_with_mccortex', [True, False])
     def test_when_pruning_traverses_two_subgraphs_into_two_transcripts(self, tmpdir,
