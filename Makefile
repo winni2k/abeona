@@ -1,7 +1,8 @@
 ENV = pipenv run
+HYPOTHESIS_PROFILE=dev
 PYTHON = $(ENV) python
 PYTEST = $(ENV) pytest
-TEST_ARGS?='tests'
+TEST_ARGS?= -- tests --hypothesis-profile $(HYPOTHESIS_PROFILE)
 
 test:
 	tox $(TEST_ARGS)

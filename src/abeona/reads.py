@@ -16,6 +16,8 @@ class GraphData:
     graph_path = attr.ib()
     format = attr.ib()
     is_paired = attr.ib()
+    buffer1 = attr.ib(attr.Factory(list))
+    buffer2 = attr.ib(attr.Factory(list))
     _fh = attr.ib(None)
 
     @property
@@ -27,11 +29,24 @@ class GraphData:
                 self._fh.append(gzip.open(self.prefix + f'.2.{self.format}.gz', 'wt'))
         return self._fh
 
+    def store_record_pair(self, *records):
+        self.buffer1.append(records[0])
+        if self.is_paired:
+            self.buffer2.append(records[1])
+
     def write_record_pair(self, *records):
         """Accepts one or two reads. Figures out if one or two reads are expected."""
         self.fh[0].write(records[0].format(self.format))
         if self.is_paired:
             self.fh[1].write(records[1].format(self.format))
+
+    def dump(self):
+        SeqIO.write(self.buffer1, self.fh[0], self.format)
+        self.fh[0].close()
+        if self.is_paired:
+            SeqIO.write(self.buffer2, self.fh[1], self.format)
+            self.fh[1].close()
+        self._fh = None
 
 
 def is_gz_file(filepath):
@@ -81,5 +96,8 @@ def main(args):
         for start in range(len(recs[0]) - kmer_size + 1):
             kmer = recs[0].seq[start:(start + kmer_size)]
             if kmer in kmers:
-                graphs[kmers[kmer]].write_record_pair(*recs)
+                graphs[kmers[kmer]].store_record_pair(*recs)
                 break
+
+    for graph in graphs:
+        graph.dump()
