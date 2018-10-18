@@ -244,6 +244,7 @@ process createSubgraphList {
 
 process assignReadsToSubgraphs {
     publishDir 'reads_assigned_to_subgraphs'
+    cpus params.jobs
 
     input:
     set is_paired, file('reads*') from reads_ch
