@@ -165,7 +165,11 @@ process candidateTranscripts {
     exitcode = subprocess.run(cmd, shell=True, executable='/bin/bash').returncode
     if exitcode == 0:
         shutil.move(f'{fasta}.tmp', fasta)
-        n_seqs = sum(1 for _ in parse(gzip.open(fasta, "rt"), 'fasta'))
+        n_seqs = 0
+        for _ in parse(gzip.open(fasta, "rt"), 'fasta'):
+            n_seqs += 1
+            if n_seqs == 2:
+                break
         if n_seqs == 0:
             shutil.move(fasta, skipped)
         elif n_seqs == 1:
