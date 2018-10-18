@@ -190,6 +190,7 @@ skipped_subgraphs_ch
 
 process buildKallistoIndices {
     publishDir 'kallisto_indices'
+    cpus params.kallisto_threads
 
     input:
 	set gid, file(fasta) from separate_candidate_transcripts_ch
