@@ -112,6 +112,7 @@ def assemble_main(argv):
     args_dict = {a: getattr(args, a) for a in dir(args) if not a.startswith('_')}
     args_dict['mccortex'] = f'mccortex {args.kmer_size}'
     args_dict['mccortex_args'] = f'--sort --force -m {args.memory}G'
+    args_dict['mccortex_thread_args'] = f'--force -m {args.memory}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'

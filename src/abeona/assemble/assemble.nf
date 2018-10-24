@@ -95,11 +95,16 @@ process pruneCortexGraphOfTips {
     """
 }
 
+pruned_by_mccortex_ch
+    .mix(pruned_by_cortexpy_ch)
+    .into{pruned_for_traverse_ch; pruned_for_links_ch}
+
+
 process traverseCortexSubgraphs {
     publishDir 'traversals'
 
     input:
-    file graph from pruned_by_mccortex_ch.mix(pruned_by_cortexpy_ch)
+    file graph from pruned_for_traverse_ch
 
     output:
     file '*.traverse.ctx' into traversals
@@ -112,6 +117,38 @@ process traverseCortexSubgraphs {
     if '$params.initial_contigs' != 'null':
         cmd += ' --initial-contigs $params.initial_contigs'
     run(cmd, shell=True, check=True)
+    """
+}
+
+process threadReads {
+    publishDir 'links'
+
+    cpus params.kallisto_threads
+
+    input:
+	file pruned_graph from pruned_for_links_ch
+    output:
+	file 'links.ctp.gz' into links_ch
+
+    """
+    #!/usr/bin/env python3
+    import os
+    from subprocess import run
+
+    cmd = [
+        '$params.mccortex', 'thread',
+        '$params.mccortex_thread_args',
+        '--threads', '$params.kallisto_threads',
+        '-W',
+        '-o links.ctp.gz',
+    ]
+    if '$params.fastx_forward' != 'null':
+        cmd += ['-2', '$params.fastx_forward:$params.fastx_reverse']
+    if '$params.fastx_single' != 'null':
+        cmd += ['-1', '$params.fastx_single']
+    cmd.append('$pruned_graph')
+    cmd = [str(c) for c in cmd]
+    run(' '.join(cmd), check=True, shell=True)
     """
 }
 
@@ -134,7 +171,7 @@ process candidateTranscripts {
     publishDir 'candidate_transcripts'
 
     input:
-    set gid, file(graph) from gid_traversals
+	set gid, file(graph), file(links) from gid_traversals.combine(links_ch)
 
     output:
     set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into separate_candidate_transcripts_ch
@@ -155,7 +192,7 @@ process candidateTranscripts {
     fasta = 'g${gid}.candidate_transcripts.fa.gz'
     transcript = 'g${gid}.transcripts.fa.gz'
     skipped = f'{fasta}.skipped'
-    cortexpy_cmd = f'cortexpy traverse --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
+    cortexpy_cmd = f'cortexpy traverse --links $links --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
     if '$params.extra_start_kmer' != 'null':
         cortexpy_cmd += ' --extra-start-kmer $params.extra_start_kmer'
     cmd = f'''
