@@ -89,6 +89,13 @@ def assemble_main(argv):
     group.add_argument('--bootstrap-proportion-threshold', type=float, default=0.95,
                        help="Proportion of bootstrap iterations for which a transcript's estimated "
                             "counts must be above the --estimated-count-threshold")
+    group.add_argument('--max-read-length', type=int,
+                       help='Length of longest read in data. Remove candidate subgraphs that do '
+                            'not have at least one candidate transcript greater than this length. '
+                            'Kallisto cannot align reads to transcripts that are shorter than the '
+                            'read. If this value is not specified, then abeona estimates this '
+                            'value from the head of the reads supplied to kallisto '
+                            '(--kallisto-fastx-*).')
 
     args = parser.parse_args(args=argv)
     make_file_paths_absolute(args)
@@ -112,6 +119,11 @@ def assemble_main(argv):
     args_dict = {a: getattr(args, a) for a in dir(args) if not a.startswith('_')}
     args_dict['mccortex'] = f'mccortex {args.kmer_size}'
     args_dict['mccortex_args'] = f'--sort --force -m {args.memory}G'
+    if args.max_read_length is None:
+        max_read_length = estimate_max_read_length(args)
+        assert max_read_length is not None
+        args_dict['max_read_length'] = max_read_length
+
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
@@ -119,6 +131,22 @@ def assemble_main(argv):
         cmd += ' -resume'
     logger.info(cmd)
     return subprocess.run(cmd, shell=True).returncode
+
+
+def estimate_max_read_length(args):
+    from .utils import get_maybe_gzipped_file_handle
+    from Bio import SeqIO
+    from itertools import islice
+    n_reads_to_read = 100
+    max_read_length = None
+    for arg in ['kallisto_fastx_single', 'kallisto_fastx_forward', 'kallisto_fastx_reverse']:
+        file = getattr(args, arg)
+        if file is not None:
+            with get_maybe_gzipped_file_handle(file, 'rt') as fh:
+                for seq in islice(SeqIO.parse(fh, 'fastq'), n_reads_to_read):
+                    if max_read_length is None or len(seq) > max_read_length:
+                        max_read_length = len(seq)
+    return max_read_length
 
 
 def subgraphs_main(argv):

@@ -166,8 +166,8 @@ class AbeonaSubgraphExpectation(object):
     out_dir = attr.ib()
     sg_id = attr.ib()
 
-    def has_cortex_graph_with_kmers(self, *kmers):
-        subgraph = self.out_dir / 'cortex_subgraphs' / f'g{self.sg_id}.ctx'
+    def has_traversal_graph_with_kmers(self, *kmers):
+        subgraph = self.out_dir / 'traversals' / f'g{self.sg_id}.traverse.ctx'
         assert subgraph.is_file()
         output_kmers = list(kmer_string_generator_from_stream(open(subgraph, 'rb')))
         assert set(kmers) == set(output_kmers)
@@ -290,13 +290,16 @@ class TestAssemble(object):
     def test_traverses_two_subgraphs_of_two_transcripts_into_four_transcripts(self, tmpdir):
 
         # given
-        kmer_size = 29
         b = FastqBuilder(tmpdir / 'single.fq')
         for _ in range(4):
-            b.with_seqs('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC',
-                        'AAAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                        'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
+            b.with_seqs('AAAAAT',
+                        'AAAATT',
+                        'AAAAAC',
+                        'AAAACA',
+                        'AAATCC',
+                        'AATCCC',
+                        'AAATCT',
+                        'AATCTT')
 
         input_fastq = b.build()
 
@@ -307,7 +310,7 @@ class TestAssemble(object):
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
-                '--kmer-size', kmer_size,
+                '--kmer-size', 5,
                 '--min-unitig-coverage', 0]
 
         # when
@@ -315,49 +318,69 @@ class TestAssemble(object):
 
         # then
         expect = AbeonaExpectation(out_dir)
-        expect.has_out_graph_with_kmers('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-                                        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                                        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAC',
-                                        'AAAAAAAAAAAAAAAAAAAAAAAAAAATC',
-                                        'AAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                                        'AAAAAAAAAAAAAAAAAAAAAAAAAATCA')
-        expect.has_out_clean_graph_with_kmers('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-                                              'AAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                                              'AAAAAAAAAAAAAAAAAAAAAAAAAAAAC',
-                                              'AAAAAAAAAAAAAAAAAAAAAAAAAAATC',
-                                              'AAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                                              'AAAAAAAAAAAAAAAAAAAAAAAAAATCA')
+        all_kmers = [
+            'AAAAA',
+            'AAAAT',
+            'AAATT',
+            'AAAAC',
+            'AAACA',
+            'AAATC',
+            'AATCC',
+            'ATCCC',
+            'AATCT',
+            'AAGAT',
+        ]
+        expect.has_out_graph_with_kmers(*all_kmers)
+        expect.has_out_clean_graph_with_kmers(*all_kmers)
 
-        sg = expect.has_subgraph_with_kmers('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-                                            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                                            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAC')
-        sg.has_traversal().has_nodes('AAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-                                     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                                     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAC')
-        sg.has_candidate_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                                     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', )
-        sg.has_reads_assigned(['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT'] * 4
-                              + ['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC'] * 4)
-        sg.has_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                           'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC')
+        sg = expect.has_subgraph_with_kmers('AAAAA', 'AAAAT', 'AAATT', 'AAAAC', 'AAACA')
+        sg.has_traversal().has_nodes('AAAAA', 'AAAAT', 'AAATT', 'AAAAC', 'AAACA')
+        sg.has_candidate_transcripts('AAAAATT', 'AAAAACA')
+        sg.has_reads_assigned(['AAAAAT', 'AAAATT', 'AAAAAC', 'AAAACA'] * 4)
+        sg.has_transcripts('AAAAATT', 'AAAAACA')
 
-        sg = expect.has_subgraph_with_kmers('AAAAAAAAAAAAAAAAAAAAAAAAAAATC',
-                                            'AAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                                            'AAAAAAAAAAAAAAAAAAAAAAAAAATCA')
-        sg.has_traversal().has_nodes('AAAAAAAAAAAAAAAAAAAAAAAAAAATC',
-                                     'AAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                                     'AAAAAAAAAAAAAAAAAAAAAAAAAATCA')
-        sg.has_candidate_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                                     'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
-        sg.has_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                           'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
-        sg.has_reads_assigned(['AAAAAAAAAAAAAAAAAAAAAAAAAAATCC'] * 4
-                              + ['AAAAAAAAAAAAAAAAAAAAAAAAAAATCA'] * 4)
+        sg = expect.has_subgraph_with_kmers('AAATC', 'AATCC', 'ATCCC', 'AATCT', 'AAGAT')
+        sg.has_traversal().has_nodes('AAATC', 'AATCC', 'ATCCC', 'AATCT', 'AAGAT')
+        sg.has_candidate_transcripts('AAATCCC', 'AAATCTT')
+        sg.has_transcripts('AAATCCC', 'AAATCTT')
+        sg.has_reads_assigned(['AAATCC', 'AATCCC', 'AAATCT', 'AATCTT'] * 4)
 
-        expect.has_out_all_transcripts('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAT',
-                                       'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAC',
-                                       'AAAAAAAAAAAAAAAAAAAAAAAAAAATCC',
-                                       'AAAAAAAAAAAAAAAAAAAAAAAAAAATCA')
+        expect.has_out_all_transcripts('AAAAATT', 'AAAAACA','AAATCCC', 'AAATCTT')
+
+    def test_ignores_subgraph_with_unitig_shorter_than_reads(self, tmpdir):
+
+        # given
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(1):
+            b.with_seqs(
+                'TAAAAAT',
+                'TAAAAATT',
+                'CAAAAAT',
+                'CAAAAATC',
+            )
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 7,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', 5,
+                '--min-unitig-coverage', 2]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect \
+            .has_subgraph(0) \
+            .has_traversal_graph_with_kmers('AAAAA', 'AAAAT', 'TAAAA', 'CAAAA') \
+            .has_reads_assigned(['TAAAAATT', 'CAAAAATC', 'TAAAAAT', 'CAAAAAT']) \
+            .has_no_candidate_transcripts()
 
     def test_with_read_pairs_traverses_graph_of_two_transcripts_into_two_transcripts(self, tmpdir):
 

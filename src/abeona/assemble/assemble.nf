@@ -2,7 +2,6 @@
 
 println params
 
-
 reads_ch = Channel
     .from(
         params.kallisto_fastx_single,
@@ -166,14 +165,17 @@ process candidateTranscripts {
     if exitcode == 0:
         shutil.move(f'{fasta}.tmp', fasta)
         n_seqs = 0
-        for _ in parse(gzip.open(fasta, "rt"), 'fasta'):
+        n_long_seqs = 0
+        for seq in parse(gzip.open(fasta, "rt"), 'fasta'):
             n_seqs += 1
-            if n_seqs == 2:
+            if len(seq) > $params.max_read_length:
+                n_long_seqs += 1
+            if n_seqs > 1 and n_long_seqs > 0:
                 break
-        if n_seqs == 0:
-            shutil.move(fasta, skipped)
-        elif n_seqs == 1:
+        if n_seqs == 1:
             shutil.move(fasta, transcript)
+        elif n_seqs == 0 or n_long_seqs == 0:
+            shutil.move(fasta, skipped)
     elif exitcode != CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
         exit(exitcode)
     else:

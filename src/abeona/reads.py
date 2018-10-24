@@ -1,4 +1,3 @@
-import binascii
 import gzip
 from logging import getLogger
 from pathlib import Path
@@ -6,6 +5,8 @@ from pathlib import Path
 import attr
 from Bio import SeqIO
 from cortexpy.graph.parser.random_access import RandomAccess
+
+from .utils import get_maybe_gzipped_file_handle
 
 logger = getLogger('abeona.reads')
 
@@ -47,18 +48,6 @@ class GraphData:
             SeqIO.write(self.buffer2, self.fh[1], self.format)
             self.fh[1].close()
         self._fh = None
-
-
-def is_gz_file(filepath):
-    with open(filepath, 'rb') as test_f:
-        return binascii.hexlify(test_f.read(2)) == b'1f8b'
-
-
-def get_maybe_gzipped_file_handle(*args):
-    if is_gz_file(args[0]):
-        return gzip.open(*args)
-    else:
-        return open(*args)
 
 
 def main(args):
