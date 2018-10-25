@@ -389,7 +389,6 @@ process concatTranscripts {
     file 'transcripts.fa.gz'
 
     """
-    cat *.fa.gz > transcripts.fa.gz
+    find . -maxdepth 1 -name '*.transcripts.fa.gz' -exec cat {} + > transcripts.fa.gz
     """
-
 }
