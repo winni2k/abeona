@@ -382,6 +382,40 @@ class TestAssemble(object):
             .has_reads_assigned(['TAAAAATT', 'CAAAAATC', 'TAAAAAT', 'CAAAAAT']) \
             .has_no_candidate_transcripts()
 
+    def test_traverses_tangle_into_two_candidate_transcripts(self, tmpdir):
+
+        # given
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(4):
+            b.with_seqs('TAAAAAT',
+                        'AAAATA',
+                        'GAAAAAC',
+                        'AAAACA')
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 7,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', 5,
+                '--min-unitig-coverage', 0]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect\
+            .has_subgraph(0)\
+            .has_candidate_transcripts('TAAAAATA',
+                                       'GAAAAACA')
+        expect.has_out_all_transcripts('TAAAAATA',
+                                       'GAAAAACA')
+
     def test_with_read_pairs_traverses_graph_of_two_transcripts_into_two_transcripts(self, tmpdir):
 
         # given

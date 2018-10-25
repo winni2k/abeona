@@ -11,7 +11,7 @@ with open('README.rst', 'r', encoding='utf-8') as f:
 
 setup(
     name='abeona',
-    version='0.34.5',
+    version='0.35.0',
     description='',
     long_description=readme,
     author='Warren W. Kretzschmar',
@@ -35,7 +35,7 @@ setup(
     },
 
     install_requires="""
-    cortexpy >= 0.44.0
+    cortexpy >= 0.45.6
     pandas
     progressbar2
     pysam
