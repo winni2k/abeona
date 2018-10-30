@@ -32,7 +32,7 @@ def assemble_main(argv):
                                      prog='abeona assemble',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-o', '--out-dir', help='Output directory', required=True)
-    parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2)
+    parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2, type=int)
     parser.add_argument('-k', '--kmer-size', default=47)
     parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes', type=int)
     parser.add_argument('-q', '--quiet', action='store_true')
@@ -124,7 +124,7 @@ def assemble_main(argv):
         assert max_read_length is not None
         args_dict['max_read_length'] = max_read_length
 
-    args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.kallisto_threads}G'
+    args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.jobs}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'

@@ -138,8 +138,8 @@ traversals
 
 process threadReads {
     publishDir 'links'
-
-    cpus params.kallisto_threads
+    errorStrategy 'retry'
+    maxRetries 3
 
     input:
 	set gid, file(graph), file('reads') from gid_traversals_for_thread_reads_ch
@@ -157,7 +157,6 @@ process threadReads {
     cmd = [
         '$params.mccortex', 'thread',
         '$params.mccortex_thread_args',
-        '--threads', '$params.kallisto_threads',
         '-W',
         '-o g${gid}.ctp.gz',
     ]
