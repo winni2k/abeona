@@ -12,10 +12,11 @@ from Bio.SeqRecord import SeqRecord
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
+from cortexpy.links import Links
 
 
 @attr.s(slots=True)
-class AbeonaRunner(object):
+class AbeonaRunner:
 
     def run(self, *args):
         argv = ['abeona'] + [str(a) for a in args]
@@ -118,6 +119,14 @@ class AbeonaExpectation(object):
                 return AbeonaSubgraphExpectation(self.out_dir, sg_id)
         assert kmers == set()
         return self
+
+    def has_subgraph_with_kmer(self, kmer):
+        for sg_id, sg in enumerate(self.subgraphs):
+            with open(sg, 'rb') as fh:
+                subgraph_kmers = set(lexlo(n) for n in load_cortex_graph(fh))
+            if kmer in subgraph_kmers:
+                return AbeonaSubgraphExpectation(self.out_dir, sg_id)
+        assert False, f'Could not find subgraph with kmer: {kmer}'
 
     def has_n_subgraphs(self, n):
         assert n == len(self.subgraphs)
@@ -229,6 +238,13 @@ class AbeonaSubgraphExpectation(object):
     def has_no_transcripts(self):
         self.has_transcripts()
         return self
+
+    def has_links_for_kmers(self, *kmers):
+        with gzip.open(self.out_dir / 'links' / f'g{self.sg_id}.ctp.gz', 'rb') as fh:
+            links = Links.from_binary_stream(fh)
+            for kmer in kmers:
+                assert lexlo(kmer) == kmer
+                assert kmer in links.body.keys()
 
 
 class TestAssemble(object):
@@ -345,7 +361,7 @@ class TestAssemble(object):
         sg.has_transcripts('AAATCCC', 'AAATCTT')
         sg.has_reads_assigned(['AAATCC', 'AATCCC', 'AAATCT', 'AATCTT'] * 4)
 
-        expect.has_out_all_transcripts('AAAAATT', 'AAAAACA','AAATCCC', 'AAATCTT')
+        expect.has_out_all_transcripts('AAAAATT', 'AAAAACA', 'AAATCCC', 'AAATCTT')
 
     def test_ignores_subgraph_with_unitig_shorter_than_reads(self, tmpdir):
 
@@ -409,8 +425,8 @@ class TestAssemble(object):
 
         # then
         expect = AbeonaExpectation(out_dir)
-        expect\
-            .has_subgraph(0)\
+        expect \
+            .has_subgraph(0) \
             .has_candidate_transcripts('TAAAAATA',
                                        'GAAAAACA')
         expect.has_out_all_transcripts('TAAAAATA',
@@ -632,7 +648,51 @@ class TestAssemble(object):
         expect.has_n_subgraphs(2)
 
 
-class TestMaxPaths(object):
+class TestLinks:
+    def test_creates_two_sets_of_links_for_two_tangles_in_two_subgraphs(self, tmpdir):
+        # given
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(4):
+            b.with_seqs('TAAAAAT',
+                        'AAAATA',
+                        'GAAAAAC',
+                        'AAAACA')
+            b.with_seqs('TCCCCCT',
+                        'CCCCTT',
+                        'GCCCCCA',
+                        'CCCCAA')
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 7,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', 5,
+                '--min-unitig-coverage', 0]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect \
+            .has_subgraph_with_kmer('AAAAA') \
+            .has_candidate_transcripts('TAAAAATA', 'GAAAAACA') \
+            .has_links_for_kmers('TAAAA', 'GAAAA', 'AAAAT', 'AAAAC')
+
+        expect \
+            .has_subgraph_with_kmer('CCCCC') \
+            .has_candidate_transcripts('TCCCCCTT', 'GCCCCCAA') \
+            .has_links_for_kmers('GGGGA', 'GCCCC', 'AGGGG', 'CCCCA')
+
+        expect.has_out_all_transcripts('TAAAAATA', 'GAAAAACA', 'TCCCCCTT', 'GCCCCCAA')
+
+
+class TestMaxPaths:
     def test_when_using_max_paths_traverses_two_subgraphs_into_one_transcript(self, tmpdir):
         # given
         kmer_size = 3
@@ -700,7 +760,7 @@ class TestMaxPaths(object):
         expect.has_out_all_transcripts()
 
 
-class TestInitialSeqsFasta(object):
+class TestInitialSeqsFasta:
     def test_traverses_two_subgraphs_into_single_transcript(self, tmpdir):
         # given
         kmer_size = 3
