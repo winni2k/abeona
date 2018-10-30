@@ -124,7 +124,7 @@ def assemble_main(argv):
         assert max_read_length is not None
         args_dict['max_read_length'] = max_read_length
 
-    args_dict['mccortex_thread_args'] = f'--force -m {args.memory}G'
+    args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.kallisto_threads}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
