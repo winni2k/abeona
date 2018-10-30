@@ -34,7 +34,7 @@ def assemble_main(argv):
     parser.add_argument('-o', '--out-dir', help='Output directory', required=True)
     parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2)
     parser.add_argument('-k', '--kmer-size', default=47)
-    parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes')
+    parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes', type=int)
     parser.add_argument('-q', '--quiet', action='store_true')
     parser.add_argument('--resume', action='store_true')
 
