@@ -101,8 +101,9 @@ def main(args):
         reads.append(SeqIO.parse(get_maybe_gzipped_file_handle(args.reverse, 'rt'), args.format))
     n_records_stored = 0
     for recs in zip(*reads):
-        for start in range(len(recs[0]) - kmer_size + 1):
-            kmer = recs[0].seq[start:(start + kmer_size)]
+        read = str(recs[0].seq)
+        for start in range(len(read) - kmer_size + 1):
+            kmer = read[start:(start + kmer_size)]
             if kmer in kmers:
                 if record_buffer_size is not None and record_buffer_size == n_records_stored:
                     for graph in graphs:
