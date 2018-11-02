@@ -289,24 +289,40 @@ process createSubgraphList {
     """
 }
 
+process convertReadsToFasta {
+
+    input:
+    set is_paired, file('reads*') from reads_ch
+
+    output:
+    set is_paired, file('reads*.fa.gz') into fasta_reads_ch
+
+    """
+    for file in reads*
+    do
+        seqtk seq -A \$file | gzip -c > \$file.fa.gz
+    done
+    """
+}
+
 process assignReadsToSubgraphs {
     publishDir 'reads_assigned_to_subgraphs'
     cpus params.jobs
 
     input:
-    set is_paired, file('reads*') from reads_ch
+    set is_paired, file('reads*') from fasta_reads_ch
     file('subgraph_list.txt') from subgraph_list_for_assignment_ch
 
     output:
-	file 'g*.fastq.gz' into assigned_reads_ch
+	file 'g*.fasta.gz' into assigned_reads_ch
 
     """
     command='abeona reads subgraph_list.txt --record-buffer-size $params.record_buffer_size'
 
     if [ '$is_paired' == 'true' ]; then
-        command="\$command reads1 --reverse reads2 --format fastq"
+        command="\$command reads1 --reverse reads2 --format fasta"
     else
-        command="\$command reads --format fastq"
+        command="\$command reads --format fasta"
     fi
     \$command
     """
@@ -319,7 +335,7 @@ assigned_reads_ch
     .flatten()
     .map { file ->
            def file_name = file.name.toString()
-           def match = file_name =~ /g(\d+).\d.fastq.gz$/
+           def match = file_name =~ /g(\d+).\d.fasta.gz$/
            return tuple(match[0][1], file)
     }
     .groupTuple()

@@ -129,7 +129,7 @@ def assemble_main(argv):
     args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.jobs}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
-    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file} -with-report {out_dir}/nexttflow_report.html'
+    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file} -with-report nexttflow_report.html'
     if args.resume:
         cmd += ' -resume'
     logger.info(cmd)

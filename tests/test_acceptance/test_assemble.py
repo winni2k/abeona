@@ -10,9 +10,9 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from cortexpy.graph.parser.streaming import kmer_string_generator_from_stream, load_cortex_graph
+from cortexpy.links import Links
 from cortexpy.test.expectation import KmerGraphExpectation
 from cortexpy.utils import lexlo
-from cortexpy.links import Links
 
 
 @attr.s(slots=True)
@@ -223,9 +223,11 @@ class AbeonaSubgraphExpectation(object):
         return self
 
     def has_reads_assigned(self, reads, reads2=None):
-        self._has_reads(*reads, dir_name='reads_assigned_to_subgraphs', suffix='.1.fastq.gz')
+        self._has_reads(*reads, dir_name='reads_assigned_to_subgraphs', suffix='.1.fasta.gz',
+                        file_type='fasta')
         if reads2 is not None:
-            self._has_reads(*reads2, dir_name='reads_assigned_to_subgraphs', suffix='.2.fastq.gz')
+            self._has_reads(*reads2, dir_name='reads_assigned_to_subgraphs', suffix='.2.fasta.gz',
+                            file_type='fasta')
         return self
 
     def has_no_candidate_transcripts(self):
