@@ -327,7 +327,8 @@ class TestAssemble(object):
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', 5,
-                '--min-unitig-coverage', 0]
+                '--min-unitig-coverage', 0,
+                '--record-buffer-size', 1]
 
         # when
         AbeonaRunner().assemble(*args)

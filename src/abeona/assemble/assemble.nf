@@ -301,11 +301,14 @@ process assignReadsToSubgraphs {
 	file 'g*.fastq.gz' into assigned_reads_ch
 
     """
+    command='abeona reads subgraph_list.txt --record-buffer-size $params.record_buffer_size'
+
     if [ '$is_paired' == 'true' ]; then
-        abeona reads subgraph_list.txt reads1 --reverse reads2 --format fastq
+        command="\$command reads1 --reverse reads2 --format fastq"
     else
-        abeona reads subgraph_list.txt reads --format fastq
+        command="\$command reads --format fastq"
     fi
+    \$command
     """
 }
 

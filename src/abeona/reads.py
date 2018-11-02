@@ -20,14 +20,27 @@ class GraphData:
     buffer1 = attr.ib(attr.Factory(list))
     buffer2 = attr.ib(attr.Factory(list))
     _fh = attr.ib(None)
+    _file1 = attr.ib(init=False)
+    _file2 = attr.ib(init=False)
+
+    def __attrs_post_init__(self):
+        Path(self.prefix).parent.mkdir(exist_ok=True)
+        self._file1 = self.prefix + f'.1.{self.format}.gz'
+        path = Path(self._file1)
+        if path.is_file():
+            path.unlink()
+        if self.is_paired:
+            self._file2 = self.prefix + f'.2.{self.format}.gz'
+            path = Path(self._file2)
+            if path.is_file():
+                path.unlink()
 
     @property
     def fh(self):
         if self._fh is None:
-            Path(self.prefix).parent.mkdir(exist_ok=True)
-            self._fh = [gzip.open(self.prefix + f'.1.{self.format}.gz', 'wt')]
+            self._fh = [gzip.open(self._file1, 'at')]
             if self.is_paired:
-                self._fh.append(gzip.open(self.prefix + f'.2.{self.format}.gz', 'wt'))
+                self._fh.append(gzip.open(self._file2, 'at'))
         return self._fh
 
     def store_record_pair(self, *records):
@@ -41,16 +54,21 @@ class GraphData:
         if self.is_paired:
             self.fh[1].write(records[1].format(self.format))
 
-    def dump(self):
+    def flush(self):
         SeqIO.write(self.buffer1, self.fh[0], self.format)
         self.fh[0].close()
+        self.buffer1.clear()
+
         if self.is_paired:
             SeqIO.write(self.buffer2, self.fh[1], self.format)
             self.fh[1].close()
+            self.buffer2.clear()
         self._fh = None
 
 
 def main(args):
+    record_buffer_size = args.record_buffer_size
+
     is_paired = args.reverse is not None
     graphs = []
     with open(args.graph_list) as fh:
@@ -81,12 +99,18 @@ def main(args):
     reads = [SeqIO.parse(get_maybe_gzipped_file_handle(args.forward, 'rt'), args.format)]
     if is_paired:
         reads.append(SeqIO.parse(get_maybe_gzipped_file_handle(args.reverse, 'rt'), args.format))
+    n_records_stored = 0
     for recs in zip(*reads):
         for start in range(len(recs[0]) - kmer_size + 1):
             kmer = recs[0].seq[start:(start + kmer_size)]
             if kmer in kmers:
+                if record_buffer_size is not None and record_buffer_size == n_records_stored:
+                    for graph in graphs:
+                        graph.flush()
+                    n_records_stored = 0
                 graphs[kmers[kmer]].store_record_pair(*recs)
+                n_records_stored += 1
                 break
 
     for graph in graphs:
-        graph.dump()
+        graph.flush()

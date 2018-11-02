@@ -135,12 +135,17 @@ class SubgraphTestDriver(object):
 class ReadsTestDriver(object):
     tmpdir = attr.ib()
     builder = attr.ib(attr.Factory(Mccortex))
+    record_buffer_size = attr.ib(None)
 
     def __getattr__(self, item):
         if item in ['with_kmer_size', 'with_dna_sequence', 'with_dna_sequence_pair']:
             return getattr(self.builder, item)
         else:
             raise ValueError(f'Could not find {item}')
+
+    def with_record_buffer_size(self, n):
+        self.record_buffer_size = n
+        return self
 
     def run(self):
         out_dir = self.tmpdir / 'abeona_reads'
@@ -163,6 +168,8 @@ class ReadsTestDriver(object):
         command = f'abeona reads --format fasta {graph_list} {self.tmpdir}/combined.1.fasta'
         if self.builder.is_paired:
             command += f' --reverse {self.tmpdir}/combined.2.fasta'
+        if self.record_buffer_size:
+            command += f' --record-buffer-size {self.record_buffer_size}'
         abeona_main(command.split())
 
         reads = list(Path(out_dir).glob('g*.fasta.gz'))

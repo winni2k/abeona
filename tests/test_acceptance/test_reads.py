@@ -26,16 +26,16 @@ class SeqTup:
         return {lexlo(k) for k in self.kmers()}
 
 
-@given(strat.sets(
-    strat.sampled_from(['AAAT', 'ATCC', 'CCCG']),
-    min_size=1,
-    max_size=3))
-def test_with_single_end_reads_decompose_and_assign_reads_to_graphs(tmpdir, seqs):
+@given(strat.sets(strat.sampled_from(['AAAT', 'ATCC', 'CCCG']), min_size=1, max_size=3),
+       strat.integers(min_value=-1, max_value=4))
+def test_with_single_end_reads_decompose_and_assign_reads_to_graphs(tmpdir, seqs, buffer_size):
     # given
     seqs = [SeqTup(s) for s in seqs]
     d = ReadsTestDriver(tmpdir)
     for seq in seqs:
         d.with_dna_sequence(seq.seq)
+    if buffer_size != -1:
+        d.with_record_buffer_size(buffer_size)
 
     # when
     expect = d.run()
@@ -46,14 +46,10 @@ def test_with_single_end_reads_decompose_and_assign_reads_to_graphs(tmpdir, seqs
     expect.has_n_graphs(len(seqs))
 
 
-@given(strat.sets(
-    strat.sampled_from([
-        ('AAAT', 'AATA'),
-        ('ATCC', 'TCCA'),
-        ('CCCG', 'CCGA'),
-    ]),
-    min_size=1,
-    max_size=3))
+@given(strat.sets(strat.sampled_from([('AAAT', 'AATA'),
+                                      ('ATCC', 'TCCA'),
+                                      ('CCCG', 'CCGA'),
+                                      ]), min_size=1, max_size=3))
 def test_with_paired_end_reads_decompose_and_assign_reads_to_graphs(tmpdir, seqs):
     # given
     seqs = [SeqTup(seq=s[0], seq2=s[1]) for s in seqs]

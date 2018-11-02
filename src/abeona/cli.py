@@ -96,6 +96,8 @@ def assemble_main(argv):
                             'read. If this value is not specified, then abeona estimates this '
                             'value from the head of the reads supplied to kallisto '
                             '(--kallisto-fastx-*).')
+    group.add_argument('--record-buffer-size', type=int, default=-1,
+                       help='Number of reads to buffer in memory when assigning reads to subgraphs')
 
     args = parser.parse_args(args=argv)
     make_file_paths_absolute(args)
@@ -127,7 +129,7 @@ def assemble_main(argv):
     args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.jobs}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
-    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
+    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file} -with-report {out_dir}/nexttflow_report.html'
     if args.resume:
         cmd += ' -resume'
     logger.info(cmd)
@@ -189,6 +191,8 @@ def reads_main(argv):
     parser.add_argument('--format', help='File format of input reads.',
                         choices=['fasta', 'fastq'],
                         required=True)
+    parser.add_argument('--record-buffer-size', default=None, type=int,
+                        help='Flush all reads to disk after this many records have been assigned')
 
     args = parser.parse_args(argv)
 
