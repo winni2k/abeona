@@ -87,8 +87,23 @@ abeona is distributed under the terms of the
 Changelog
 ---------
 
-v0.38.1
-~~~~~~~
+Version 0.36.0
+~~~~~~~~~~~~~~
+
+:Date: 2018-10-25
+
+New features
+............
+
+* Graph traversal now uses links
+
+Fixes
+.....
+
+* Lots of improvements to ``abeona reads`` to improve memory and filehandle use
+
+Version 0.33.0
+~~~~~~~~~~~~~~
 
 :Date: 2018-10-17
 
