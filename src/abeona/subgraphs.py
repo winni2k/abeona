@@ -1,14 +1,15 @@
+import json
 import logging
 from pathlib import Path
 
 import attr
+import progressbar
 from Bio import SeqIO
 from cortexpy.constants import EngineTraversalOrientation
 from cortexpy.graph.parser.random_access import SlurpedRandomAccess
 from cortexpy.graph.serializer.kmer import dump_colored_de_bruijn_graph_to_cortex
 from cortexpy.graph.traversal.engine import Engine
 from cortexpy.utils import lexlo
-import progressbar
 
 progressbar.streams.wrap_stderr()
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,15 @@ class KmerStringTracker(object):
                 yield string
 
 
+def count_junctions(graph):
+    """Return the number of junctions in graph"""
+    junc_count = 0
+    for node in graph.nodes():
+        if graph.in_degree(node) > 1 or graph.out_degree(node) > 1:
+            junc_count += 1
+    return junc_count
+
+
 def main(args):
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
@@ -79,10 +89,13 @@ def main(args):
             logger.debug('Writing graph %s to: %s', graph_idx, subgraph_path)
             with open(subgraph_path, 'wb') as out_fh:
                 dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
+            with open(str(subgraph_path) + '.json', 'wt') as json_fh:
+                json.dump({'n_junctions': count_junctions(engine.graph)}, json_fh)
             for node in engine.graph:
                 kstring_tracker.add_seen(lexlo(node))
             logger.debug(
-                'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph), len(ra) - len(kstring_tracker.seen))
+                'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph),
+                len(ra) - len(kstring_tracker.seen))
             bar.update(len(kstring_tracker.seen))
             graph_idx += 1
     logger.info('No kmers remaining')

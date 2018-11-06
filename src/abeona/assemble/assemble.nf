@@ -64,6 +64,7 @@ process cleanCortexGraph {
     """
 }
 
+
 prune_with_cortexpy_ch = Channel.create()
 pruned_by_mccortex_ch = Channel.create()
 clean_cortex_graphs
@@ -106,7 +107,8 @@ process traverseCortexSubgraphs {
     file graph from pruned_for_traverse_ch
 
     output:
-    file '*.traverse.ctx' into traversals
+    file '*.traverse.ctx' into traversals_ch
+    file '*.traverse.ctx.json' into traversal_jsons_ch
 
     """
     #!/usr/bin/env python3
@@ -122,19 +124,74 @@ process traverseCortexSubgraphs {
 gid_assigned_reads_for_links_ch = Channel.create()
 // Extract graph id and pass it along in the pipeline
 gid_traversals_for_thread_reads_ch = Channel.create()
-traversals
+traversals_ch
+    .flatten()
+    .map { file ->
+           def file_name = file.name.toString()
+           def match = file_name =~ /g(\d+)/
+           return tuple(match[0][1], tuple(file))
+     }
+    .into{gid_traversals_for_candidate_transcripts_ch;
+          gid_traversals_for_single_transcripts_ch;
+	  gid_traversals_for_subgraph_list_ch;
+	  gid_traversals_for_thread_reads_ch }
+
+gid_several_unitigs_for_subgraph_list_ch = Channel.create()
+gid_several_unitigs_ch = Channel.create()
+gid_several_unitigs_ch
+    .into{
+        gid_several_unitigs_for_thread_reads_ch;
+        gid_several_unitigs_for_subgraph_list_ch;
+    }
+
+gid_traversals_for_subgraph_list_ch
+    .join(gid_several_unitigs_for_subgraph_list_ch)
+    .map{ it[0..1] }
+    .into{gid_traversals_for_subgraph_list1_ch;
+          gid_traversals_for_subgraph_list2_ch}
+
+
+gid_traversal_jsons_ch = traversal_jsons_ch
     .flatten()
     .map { file ->
            def file_name = file.name.toString()
            def match = file_name =~ /g(\d+)/
            return tuple(match[0][1], file)
      }
-    .groupTuple()
-    .into{gid_traversals;
-	  gid_traversals_for_subgraph_list1_ch;
-	  gid_traversals_for_subgraph_list2_ch;
-	  gid_traversals_for_thread_reads_ch }
 
+gid_one_unitig_ch = Channel.create()
+gid_traversal_jsons_ch
+    .map { gid, json ->
+    slurper =  new groovy.json.JsonSlurper()
+    return tuple(gid, slurper.parseText(new File("$json").getText('UTF-8'))['n_junctions'] as Integer)
+}
+    .choice(gid_one_unitig_ch, gid_several_unitigs_ch){ vals -> vals[1] == 0 ? 0 : 1}
+
+process singleTranscripts {
+    input:
+    set gid, file(graph), file(flag) from gid_traversals_for_single_transcripts_ch
+        .join(gid_one_unitig_ch)
+
+    output:
+    set gid, file("g${gid}.transcripts.fa.gz") into nonkallisto_single_transcripts_ch
+
+    """
+    cortexpy --version
+    cmd='cortexpy traverse --graph-index ${gid} $graph'
+    if [ '$params.extra_start_kmer' != 'null' ]
+    then
+        cmd="\$cmd --extra-start-kmer $params.extra_start_kmer"
+    fi
+    \$cmd | gzip -c > g${gid}.transcripts.fa.gz.tmp
+    mv g${gid}.transcripts.fa.gz.tmp g${gid}.transcripts.fa.gz
+    gzip -dc g${gid}.transcripts.fa.gz
+    """
+}
+
+gid_traversals_reads_for_thread_reads_ch = gid_traversals_for_thread_reads_ch.view()
+	.join(gid_assigned_reads_for_links_ch).view()
+	.join(gid_several_unitigs_for_thread_reads_ch).view()
+        .map{it[0..2]}
 
 process threadReads {
     publishDir 'links'
@@ -142,8 +199,8 @@ process threadReads {
     maxRetries 3
 
     input:
-	set gid, file(graph), file('reads') from gid_traversals_for_thread_reads_ch
-	.join(gid_assigned_reads_for_links_ch)
+	set gid, file(graph), file('reads') from gid_traversals_reads_for_thread_reads_ch
+
     output:
 	set gid, file('g*.ctp.gz') into links_ch
 
@@ -176,11 +233,10 @@ process candidateTranscripts {
     publishDir 'candidate_transcripts'
 
     input:
-	set gid, file(graph), file(links) from gid_traversals.join(links_ch)
+	set gid, file(graph), file(links) from gid_traversals_for_candidate_transcripts_ch.join(links_ch)
 
     output:
     set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into separate_candidate_transcripts_ch
-    set(gid, file('g*.transcripts.fa.gz')) optional true into nonkallisto_single_transcripts_ch
     set(gid, file('g*.candidate_transcripts.fa.gz.skipped'), file(graph)) optional true into skipped_subgraphs_ch
 
     """
@@ -268,13 +324,13 @@ process createSubgraphList {
 
     input:
     val(gids) from gid_traversals_for_subgraph_list1_ch
-	.map{it[0]}
-	.toSortedList()
+        .map{it[0]}
+        .toSortedList()
     val(graphs) from gid_traversals_for_subgraph_list2_ch
-	.toSortedList({ a, b -> a[0] <=> b[0] })
+        .toSortedList({ a, b -> a[0] <=> b[0] })
         .flatten()
-	.collate(2)
-	.map{it[1]}
+	    .collate(2)
+	    .map{it[1]}
         .collect()
 
     output:
@@ -438,8 +494,8 @@ process filter_transcripts {
 
 }
 
-all_transcripts = filtered_transcripts
-    .mix(nonkallisto_single_transcripts_ch.map{ g,f -> f })
+all_transcripts = nonkallisto_single_transcripts_ch.map{ it[1] }
+    .mix(filtered_transcripts)
     .collectFile(storeDir: 'transcripts')
 
 process concatTranscripts {

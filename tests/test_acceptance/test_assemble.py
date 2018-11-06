@@ -145,10 +145,9 @@ class AbeonaExpectation(object):
         return self
 
     def has_out_all_transcripts(self, *seqs):
-        if len(seqs) == 0:
-            assert not self.all_transcripts.is_file()
+        if not self.all_transcripts.is_file():
+            assert 0 == len(seqs)
             return self
-        assert self.all_transcripts.is_file()
         expected_seqs = [lexlo(s) for s in seqs]
         with gzip.open(self.all_transcripts, 'rt') as fh:
             seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]

@@ -1,10 +1,10 @@
 import gzip
 from pathlib import Path
+import json
 
 import attr
 from cortexpy.graph.parser.streaming import load_cortex_graph
 from cortexpy.test.expectation import KmerGraphExpectation, Fasta
-from cortexpy.utils import lexlo
 
 
 # @attr.s(slots=True)
@@ -54,7 +54,11 @@ from cortexpy.utils import lexlo
 @attr.s(slots=True)
 class AbeonaKmerGraphExpectation(KmerGraphExpectation):
     graph_path = attr.ib(None)
+    meta = attr.ib(None)
 
+    def has_meta_info(self, key, val):
+        assert val == self.meta[key]
+        return self
 
 @attr.s(slots=True)
 class Traversals:
@@ -63,8 +67,11 @@ class Traversals:
 
     def __attrs_post_init__(self):
         self.traversal_expectations = [
-            AbeonaKmerGraphExpectation(load_cortex_graph(open(graph, 'rb')), graph_path=graph) for
-            graph in self.traversals
+            AbeonaKmerGraphExpectation(
+                load_cortex_graph(open(graph, 'rb')),
+                graph_path=graph,
+                meta=json.load(open(str(graph)+'.json', 'r'))
+            ) for graph in self.traversals
         ]
 
     def has_graph_with_kmers(self, *kmers):
