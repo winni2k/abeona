@@ -37,6 +37,10 @@ def assemble_main(argv):
     parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes', type=int)
     parser.add_argument('-q', '--quiet', action='store_true')
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--with-report', action='store_true',
+                        help='Create nextflow report file at nexttflow_report.html in output directory')
+    parser.add_argument('--with-dag', action='store_true',
+                        help='Create flowchart of workflow at flowchart.png in output directory')
 
     parser.add_argument('--fastx-forward', help='Forward sequences in FASTA/FASTQ format',
                         required=False)
@@ -98,6 +102,7 @@ def assemble_main(argv):
                             '(--kallisto-fastx-*).')
     group.add_argument('--record-buffer-size', type=int, default=-1,
                        help='Number of reads to buffer in memory when assigning reads to subgraphs')
+    group.add_argument('--max-junctions', type=int, default=0)
 
     args = parser.parse_args(args=argv)
     make_file_paths_absolute(args)
@@ -129,7 +134,11 @@ def assemble_main(argv):
     args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.jobs}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
-    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file} -with-report nexttflow_report.html'
+    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
+    if args.with_report:
+        cmd += ' -with-report nexttflow_report.html'
+    if args.with_dag:
+        cmd += ' -with-dag flowchart.png'
     if args.resume:
         cmd += ' -resume'
     logger.info(cmd)

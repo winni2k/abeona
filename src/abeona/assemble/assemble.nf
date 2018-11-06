@@ -124,6 +124,7 @@ process traverseCortexSubgraphs {
 gid_assigned_reads_for_links_ch = Channel.create()
 // Extract graph id and pass it along in the pipeline
 gid_traversals_for_thread_reads_ch = Channel.create()
+gid_traversals_for_skipped_bc_too_large_ch = Channel.create()
 traversals_ch
     .flatten()
     .map { file ->
@@ -134,7 +135,9 @@ traversals_ch
     .into{gid_traversals_for_candidate_transcripts_ch;
           gid_traversals_for_single_transcripts_ch;
 	  gid_traversals_for_subgraph_list_ch;
-	  gid_traversals_for_thread_reads_ch }
+	  gid_traversals_for_thread_reads_ch;
+	  gid_traversals_for_skipped_bc_too_large_ch
+     }
 
 gid_several_unitigs_for_subgraph_list_ch = Channel.create()
 gid_several_unitigs_ch = Channel.create()
@@ -160,17 +163,23 @@ gid_traversal_jsons_ch = traversal_jsons_ch
      }
 
 gid_one_unitig_ch = Channel.create()
+skipped_bc_too_large_ch = Channel.create()
 gid_traversal_jsons_ch
     .map { gid, json ->
     slurper =  new groovy.json.JsonSlurper()
     return tuple(gid, slurper.parseText(new File("$json").getText('UTF-8'))['n_junctions'] as Integer)
 }
-    .choice(gid_one_unitig_ch, gid_several_unitigs_ch){ vals -> vals[1] == 0 ? 0 : 1}
+    .choice(gid_one_unitig_ch, skipped_bc_too_large_ch, gid_several_unitigs_ch){ vals ->
+        if (vals[1] == 0) {return 0}
+	if (params.max_junctions > 0 && vals[1] > params.max_junctions) {return 1}
+	return 2
+    }
 
 process singleTranscripts {
     input:
-    set gid, file(graph), file(flag) from gid_traversals_for_single_transcripts_ch
+    set gid, file(graph) from gid_traversals_for_single_transcripts_ch
         .join(gid_one_unitig_ch)
+        .map{it[0..1]}
 
     output:
     set gid, file("g${gid}.transcripts.fa.gz") into nonkallisto_single_transcripts_ch
@@ -188,9 +197,9 @@ process singleTranscripts {
     """
 }
 
-gid_traversals_reads_for_thread_reads_ch = gid_traversals_for_thread_reads_ch.view()
-	.join(gid_assigned_reads_for_links_ch).view()
-	.join(gid_several_unitigs_for_thread_reads_ch).view()
+gid_traversals_reads_for_thread_reads_ch = gid_traversals_for_thread_reads_ch
+	.join(gid_assigned_reads_for_links_ch)
+	.join(gid_several_unitigs_for_thread_reads_ch)
         .map{it[0..2]}
 
 process threadReads {
@@ -285,6 +294,12 @@ process candidateTranscripts {
 }
 
 skipped_subgraphs_ch
+    .mix(
+    skipped_bc_too_large_ch
+	.map{it[0]}
+	.join(gid_traversals_for_skipped_bc_too_large_ch)
+	.map{[it[0], "NA", it[1]]}
+    )
     .collectFile(storeDir: 'skipped_subgraphs'){ item ->
         [ 'skipped_subgraphs.txt', item.join('\t')  + '\n' ]
     }

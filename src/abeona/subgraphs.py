@@ -51,7 +51,9 @@ def count_junctions(graph):
     """Return the number of junctions in graph"""
     junc_count = 0
     for node in graph.nodes():
-        if graph.in_degree(node) > 1 or graph.out_degree(node) > 1:
+        if graph.in_degree(node) > 1:
+            junc_count += 1
+        if graph.out_degree(node) > 1:
             junc_count += 1
     return junc_count
 

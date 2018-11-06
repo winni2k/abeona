@@ -159,9 +159,11 @@ class AbeonaExpectation(object):
             descs = [rec.description for rec in SeqIO.parse(fh, 'fasta')]
         desc_re = re.compile(regex)
         assert any(desc_re.search(d) for d in descs)
+        return self
 
     def has_n_missing_subgraphs(self, n):
-        assert 1 == len(self.skipped_subgraphs.read_text().splitlines())
+        assert n == len(self.skipped_subgraphs.read_text().splitlines())
+        return self
 
     def _has_kmers_in_graph(self, kmers, graph):
         with open(graph, 'rb') as fh:
@@ -433,6 +435,36 @@ class TestAssemble(object):
                                        'GAAAAACA')
         expect.has_out_all_transcripts('TAAAAATA',
                                        'GAAAAACA')
+
+    def test_ignores_subgraph_with_two_junctions(self, tmpdir):
+
+        # given
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(4):
+            b.with_seqs('TAAAAAT',
+                        'AAAATA',
+                        'GAAAAAC',
+                        'AAAACA')
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fastx-single', input_fastq,
+                '--kallisto-fragment-length', 7,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', 5,
+                '--max-junctions', 1,
+                '--min-unitig-coverage', 0]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_n_missing_subgraphs(1)
 
     def test_with_read_pairs_traverses_graph_of_two_transcripts_into_two_transcripts(self, tmpdir):
 
