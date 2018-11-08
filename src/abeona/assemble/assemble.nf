@@ -362,16 +362,18 @@ process createSubgraphList {
 
 process convertReadsToFasta {
 
+    cpus 3
+
     input:
     set is_paired, file('reads*') from reads_ch
 
     output:
-    set is_paired, file('reads*.fa.gz') into fasta_reads_ch
+    set is_paired, file('reads*.fa') into fasta_reads_ch
 
     """
     for file in reads*
     do
-        seqtk seq -A \$file | gzip -c > \$file.fa.gz
+        seqtk seq -A \$file > \$file.fa &
     done
     """
 }

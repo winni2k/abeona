@@ -85,6 +85,13 @@ def assemble_main(argv):
     group.add_argument('--kallisto-threads', type=int, default=2,
                        help='Number of logical cores to assign to a single kallisto quant job. '
                             'Needs to be less than or equal to --jobs')
+    group.add_argument('--max-read-length', type=int,
+                       help='Length of longest read in data. Remove candidate subgraphs that do '
+                            'not have at least one candidate transcript greater than this length. '
+                            'Kallisto cannot align reads to transcripts that are shorter than the '
+                            'read. If this value is not specified, then abeona estimates this '
+                            'value from the head of the reads supplied to kallisto '
+                            '(--kallisto-fastx-*).')
 
     group = parser.add_argument_group('Candidate transcript filtering')
     group.add_argument('--estimated-count-threshold', type=float, default=1,
@@ -93,13 +100,6 @@ def assemble_main(argv):
     group.add_argument('--bootstrap-proportion-threshold', type=float, default=0.95,
                        help="Proportion of bootstrap iterations for which a transcript's estimated "
                             "counts must be above the --estimated-count-threshold")
-    group.add_argument('--max-read-length', type=int,
-                       help='Length of longest read in data. Remove candidate subgraphs that do '
-                            'not have at least one candidate transcript greater than this length. '
-                            'Kallisto cannot align reads to transcripts that are shorter than the '
-                            'read. If this value is not specified, then abeona estimates this '
-                            'value from the head of the reads supplied to kallisto '
-                            '(--kallisto-fastx-*).')
     group.add_argument('--record-buffer-size', type=int, default=-1,
                        help='Number of reads to buffer in memory when assigning reads to subgraphs')
     group.add_argument('--max-junctions', type=int, default=0)
@@ -148,6 +148,7 @@ def assemble_main(argv):
 def estimate_max_read_length(args):
     from .utils import get_maybe_gzipped_file_handle
     from Bio.SeqIO.QualityIO import FastqGeneralIterator
+    from Bio.SeqIO.FastaIO import SimpleFastaParser
     from itertools import islice
     n_reads_to_read = 100
     max_read_length = None
@@ -155,10 +156,16 @@ def estimate_max_read_length(args):
         file = getattr(args, arg)
         if file is not None:
             with get_maybe_gzipped_file_handle(file, 'rt') as fh:
-                # don't error if title of seq and quality differ
-                for title, sequence, quality in islice(FastqGeneralIterator(fh), n_reads_to_read):
-                    if max_read_length is None or len(sequence) > max_read_length:
-                        max_read_length = len(sequence)
+                try:
+                    read_iter = ((title, seq) for title, seq, qual in FastqGeneralIterator(fh))
+                except ValueError as e:
+                    if e.args[0] ==  "Records in Fastq files should start with '@' character":
+                        read_iter = SimpleFastaParser(fh)
+                    else:
+                        raise
+                for _, seq in islice(read_iter, n_reads_to_read):
+                    if max_read_length is None or len(seq) > max_read_length:
+                        max_read_length = len(seq)
     return max_read_length
 
 
