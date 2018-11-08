@@ -298,7 +298,7 @@ skipped_subgraphs_ch
     skipped_bc_too_large_ch
 	.map{it[0]}
 	.join(gid_traversals_for_skipped_bc_too_large_ch)
-	.map{[it[0], "NA", it[1]]}
+	.map{[it[0], "NA", it[1][0]]}
     )
     .collectFile(storeDir: 'skipped_subgraphs'){ item ->
         [ 'skipped_subgraphs.txt', item.join('\t')  + '\n' ]

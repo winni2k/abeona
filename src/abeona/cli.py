@@ -147,7 +147,7 @@ def assemble_main(argv):
 
 def estimate_max_read_length(args):
     from .utils import get_maybe_gzipped_file_handle
-    from Bio import SeqIO
+    from Bio.SeqIO.QualityIO import FastqGeneralIterator
     from itertools import islice
     n_reads_to_read = 100
     max_read_length = None
@@ -155,9 +155,10 @@ def estimate_max_read_length(args):
         file = getattr(args, arg)
         if file is not None:
             with get_maybe_gzipped_file_handle(file, 'rt') as fh:
-                for seq in islice(SeqIO.parse(fh, 'fastq'), n_reads_to_read):
-                    if max_read_length is None or len(seq) > max_read_length:
-                        max_read_length = len(seq)
+                # don't error if title of seq and quality differ
+                for title, sequence, quality in islice(FastqGeneralIterator(fh), n_reads_to_read):
+                    if max_read_length is None or len(sequence) > max_read_length:
+                        max_read_length = len(sequence)
     return max_read_length
 
 
