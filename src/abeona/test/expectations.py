@@ -96,7 +96,7 @@ class Fastas:
         fastas = []
         for fasta in sorted(self.fastas):
             if Path(fasta).with_suffix('').stem.startswith(stem):
-                with gzip.open(fasta, 'rt') as fh:
+                with open(fasta, 'rt') as fh:
                     fastas.append(Fasta(fh.read()))
         if len(fastas) == 0:
             assert False, f'Could not find stem ({stem}) in fastas\n{self.fastas}'

@@ -146,9 +146,7 @@ def assemble_main(argv):
 
 
 def estimate_max_read_length(args):
-    from .utils import get_maybe_gzipped_file_handle
-    from Bio.SeqIO.QualityIO import FastqGeneralIterator
-    from Bio.SeqIO.FastaIO import SimpleFastaParser
+    from .utils import get_maybe_gzipped_file_handle, get_fastx_title_seq_generator
     from itertools import islice
     n_reads_to_read = 100
     max_read_length = None
@@ -156,14 +154,7 @@ def estimate_max_read_length(args):
         file = getattr(args, arg)
         if file is not None:
             with get_maybe_gzipped_file_handle(file, 'rt') as fh:
-                try:
-                    read_iter = ((title, seq) for title, seq, qual in FastqGeneralIterator(fh))
-                except ValueError as e:
-                    if e.args[0] ==  "Records in Fastq files should start with '@' character":
-                        read_iter = SimpleFastaParser(fh)
-                    else:
-                        raise
-                for _, seq in islice(read_iter, n_reads_to_read):
+                for _, seq in islice(get_fastx_title_seq_generator(fh), n_reads_to_read):
                     if max_read_length is None or len(seq) > max_read_length:
                         max_read_length = len(seq)
     return max_read_length

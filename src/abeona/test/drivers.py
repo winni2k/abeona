@@ -50,7 +50,9 @@ class Mccortex:
         self.sequence_pairs[name].append([sequence1, sequence2])
         return self
 
-    def build(self, tmpdir):
+    def build(self, dir):
+        dir = Path(dir)
+        dir.mkdir(exist_ok=True)
         self.assert_single_or_paired()
         if len(self.sequence_pairs) == 0:
             sequences = self.sequences
@@ -61,9 +63,8 @@ class Mccortex:
         for name, dna_sequence_tuple_list in sequences.items():
             mccortex_args += f' --sample {name}'
             is_paired = len(dna_sequence_tuple_list[0]) == 2
-            fa1 = tmpdir / f'input.{name}.1.fasta'
-            fa2 = tmpdir / f'input.{name}.2.fasta'
-            fh2 = open(fa2, 'w')
+            fa1 = dir / f'input.{name}.1.fasta'
+            fa2 = dir / f'input.{name}.2.fasta'
             with open(fa1, 'w') as fh1:
                 with open(fa2, 'w') as fh2:
                     for tuple in dna_sequence_tuple_list:
@@ -76,7 +77,7 @@ class Mccortex:
             else:
                 mccortex_args += f' -1 {fa1}'
 
-        output_graph = str(tmpdir.join('output.ctx'))
+        output_graph = str(dir / 'output.ctx')
         mccortex_args += f' {output_graph}'
 
         ret = runner.Mccortex(self.kmer_size, mccortex_bin=self.mccortex_bin) \
@@ -92,7 +93,36 @@ class Mccortex:
 
 
 @attr.s(slots=True)
-class SubgraphTestDriver(object):
+class CleanMccortex:
+    mc_builder = attr.ib()
+    min_unitig_coverage = attr.ib(0)
+    min_tip_length = attr.ib(0)
+
+    @classmethod
+    def from_mccortex_builder(cls, builder):
+        return cls(mc_builder=builder)
+
+    def __getattr__(self, item):
+        return getattr(self.mc_builder, item)
+
+    def with_min_unitig_coverage(self, n):
+        self.min_unitig_coverage = n
+        return self
+
+    def build(self, dir):
+        dir = Path(dir)
+        dir.mkdir(exist_ok=True)
+        full_graph = self.mc_builder.build(dir)
+        clean_graph = dir / 'clean.ctx'
+
+        ret = runner.Mccortex(self.mc_builder.kmer_size, mccortex_bin=self.mc_builder.mccortex_bin) \
+            .clean(graphs=[full_graph], out=clean_graph, clip_tips_shorter_than=self.min_tip_length,
+                   unitigs_with_mean_coverage_less_than=self.min_unitig_coverage)
+        logger.debug('\n' + ret.stdout.decode())
+        return clean_graph
+
+@attr.s(slots=True)
+class SubgraphTestDriver:
     tmpdir = attr.ib()
     builder = attr.ib(attr.Factory(Mccortex))
     initial_contigs = attr.ib(None)
@@ -132,13 +162,12 @@ class SubgraphTestDriver(object):
 
 
 @attr.s(slots=True)
-class ReadsTestDriver(object):
-    tmpdir = attr.ib()
+class ReadsTestDriver:
     builder = attr.ib(attr.Factory(Mccortex))
     record_buffer_size = attr.ib(None)
 
     def __getattr__(self, item):
-        if item in ['with_kmer_size', 'with_dna_sequence', 'with_dna_sequence_pair']:
+        if item in ['with_kmer_size', 'with_dna_sequence', 'with_dna_sequence_pair', 'with_min_unitig_coverage']:
             return getattr(self.builder, item)
         else:
             raise ValueError(f'Could not find {item}')
@@ -147,31 +176,31 @@ class ReadsTestDriver(object):
         self.record_buffer_size = n
         return self
 
-    def run(self):
-        out_dir = self.tmpdir / 'abeona_reads'
-        traversal_expectation = SubgraphTestDriver(self.tmpdir, self.builder).run()
+    def run(self, tmpdir):
+        out_dir = tmpdir / 'abeona_reads'
+        traversal_expectation = SubgraphTestDriver(tmpdir, self.builder).run()
         graphs = traversal_expectation.traversals
 
         for idx in [1, 2]:
             subprocess.run(
-                f'cat {self.tmpdir}/*.{idx}.fasta > {self.tmpdir}/combined.{idx}.fasta',
+                f'cat {tmpdir}/*.{idx}.fasta > {tmpdir}/combined.{idx}.fasta',
                 shell=True,
                 check=True
             )
 
-        graph_list = self.tmpdir / 'subgraph_list.txt'
+        graph_list = tmpdir / 'subgraph_list.txt'
         with open(graph_list, 'w') as fh:
             fh.write('# prefix\tgraph\n')
             for graph in graphs:
                 fh.write(f'{out_dir/graph.stem}\t{graph}\n')
 
-        command = f'abeona reads --format fasta {graph_list} {self.tmpdir}/combined.1.fasta'
+        command = f'abeona reads --format fasta {graph_list} {tmpdir}/combined.1.fasta'
         if self.builder.is_paired:
-            command += f' --reverse {self.tmpdir}/combined.2.fasta'
+            command += f' --reverse {tmpdir}/combined.2.fasta'
         if self.record_buffer_size:
             command += f' --record-buffer-size {self.record_buffer_size}'
         abeona_main(command.split())
 
-        reads = list(Path(out_dir).glob('g*.fasta.gz'))
+        reads = list(Path(out_dir).glob('g*.fa'))
 
         return TraversalsAndFastas(Fastas(reads), traversal_expectation)
