@@ -263,7 +263,9 @@ process candidateTranscripts {
     fasta = 'g${gid}.candidate_transcripts.fa.gz'
     transcript = 'g${gid}.transcripts.fa.gz'
     skipped = f'{fasta}.skipped'
-    cortexpy_cmd = f'cortexpy traverse --links $links --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
+    cortexpy_cmd = f'cortexpy traverse --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
+    if '$params.no_links' == 'false':
+        cortexpy_cmd += ' --links $links'
     if '$params.extra_start_kmer' != 'null':
         cortexpy_cmd += ' --extra-start-kmer $params.extra_start_kmer'
     cmd = f'''

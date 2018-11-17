@@ -683,7 +683,8 @@ class TestAssemble(object):
 
 
 class TestLinks:
-    def test_creates_two_sets_of_links_for_two_tangles_in_two_subgraphs(self, tmpdir):
+    @pytest.mark.parametrize('no_links', [True, False])
+    def test_creates_two_sets_of_links_for_two_tangles_in_two_subgraphs(self, tmpdir, no_links):
         # given
         b = FastqBuilder(tmpdir / 'single.fq')
         for _ in range(4):
@@ -699,29 +700,39 @@ class TestLinks:
         input_fastq = b.build()
 
         out_dir = Path(tmpdir) / 'abeona'
-        args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
-                '--kallisto-fragment-length', 7,
-                '--kallisto-sd', 0.1,
-                '--bootstrap-samples', 100,
-                '--out-dir', out_dir,
-                '--kmer-size', 5,
-                '--min-unitig-coverage', 0]
+        args = [
+            '--fastx-single', input_fastq,
+            '--kallisto-fastx-single', input_fastq,
+            '--kallisto-fragment-length', 7,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 100,
+            '--out-dir', out_dir,
+            '--kmer-size', 5,
+            '--min-unitig-coverage', 0,
+        ]
+        if no_links:
+            args.append('--no-links')
 
         # when
         AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir)
-        expect \
-            .has_subgraph_with_kmer('AAAAA') \
-            .has_candidate_transcripts('TAAAAATA', 'GAAAAACA') \
-            .has_links_for_kmers('TAAAA', 'GAAAA', 'AAAAT', 'AAAAC')
 
-        expect \
-            .has_subgraph_with_kmer('CCCCC') \
-            .has_candidate_transcripts('TCCCCCTT', 'GCCCCCAA') \
-            .has_links_for_kmers('GGGGA', 'GCCCC', 'AGGGG', 'CCCCA')
+        sg = expect.has_subgraph_with_kmer('AAAAA')
+        sg.has_links_for_kmers('TAAAA', 'GAAAA', 'AAAAT', 'AAAAC')
+        if no_links:
+            sg.has_candidate_transcripts('TAAAAATA', 'GAAAAACA', 'GAAAAATA', 'TAAAAACA')
+        else:
+            sg.has_candidate_transcripts('TAAAAATA', 'GAAAAACA')
+
+        sg = expect.has_subgraph_with_kmer('CCCCC')
+        sg.has_links_for_kmers('GGGGA', 'GCCCC', 'AGGGG', 'CCCCA')
+
+        if no_links:
+            sg.has_candidate_transcripts('TCCCCCTT', 'GCCCCCAA', 'GCCCCCTT', 'TCCCCCAA')
+        else:
+            sg.has_candidate_transcripts('TCCCCCTT', 'GCCCCCAA')
 
         expect.has_out_all_transcripts('TAAAAATA', 'GAAAAACA', 'TCCCCCTT', 'GCCCCCAA')
 
