@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python=3.6
   - mccortex >=1.0
-  - nextflow >=0.31.1
+  - nextflow ==0.31.1
   - kallisto >=0.44.0
   - samtools
   - seqtk
