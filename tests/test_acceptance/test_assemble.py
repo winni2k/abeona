@@ -24,6 +24,8 @@ class AbeonaRunner:
 
     def assemble(self, *args):
         argv = ['assemble'] + list(args)
+        if '--min-tip-length' not in argv:
+            argv += ['--min-tip-length', '0']
         return self.run(*argv)
 
 

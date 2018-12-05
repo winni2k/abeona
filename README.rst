@@ -24,6 +24,14 @@ abeona v0.40.0
 
 A simple transcriptome assembler based on kallisto and Cortex graphs.
 
+Abeona consists of the following stages:
+
+1. Assembly of reads into a De Bruijn graph
+2. Pruning of tips and low-coverage unitigs
+3. Partitioning of the De Bruijn graph into subgraphs
+4. Generation of candidate transcripts by simple path traversal
+5. Filtering of candidate transcripts by kallisto
+
 Installation
 ------------
 
@@ -35,18 +43,30 @@ After activating the conda environment, run:
 
     conda install abeona -c conda-forge -c bioconda
 
-Running
--------
+Usage
+-----
 
-The principal command is `abeona assemble`. This command assembles transcripts from cleaned
-short-read RNA-seq reads in FASTA or FASTQ format. For more information, see:
+The principal command is ``abeona assemble``. This command assembles transcripts from cleaned
+short-read RNA-seq reads in FASTA or FASTQ format. A description of command arguments is
+available with the command:
 
 .. code-block:: bash
 
     abeona assemble --help
 
+Specifying input read data
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Abeona is designed to be run on reads from one biological sample at a time.
+Abeona uses sequencing reads in two stages: for De Bruijn-graph construction,
+and for candidate transcript filtering with kallisto. The first stage accepts
+paired-end, single-end, or both types of reads through the ``--fastx-*`` arguments.
+The reads for the second stage are specified with the ``--kallisto-fastx-*`` arguments.
+Kallisto only accepts single-end or paired-end reads, so input to this stage
+is also restricted in that manner.
+
 Toy Example
-~~~~~~~~~~~
+-----------
 
 .. code-block:: bash
 
@@ -81,9 +101,14 @@ Toy Example
 License
 -------
 
-abeona is distributed under the terms of the
+Abeona is distributed under the terms of the
 `Apache License, Version 2.0 <https://choosealicense.com/licenses/apache-2.0>`_.
 
+Citing
+------
+
+If you use abeona in your research, please cite:
+``Akhter S, Kretzschmar WW, Nordal V, Delhomme N, Street NR, Nilsson O, Emanuelsson O, Sundström JF. Integrative Analysis of Three RNA Sequencing Methods Identifies Mutually Exclusive Exons of MADS-Box Isoforms During Early Bud Development in Picea abies. Front. Plant Sci. 9, 1–18 (2018).``
 
 Changelog
 ---------

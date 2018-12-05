@@ -59,8 +59,9 @@ def assemble_main(argv):
                         required=False)
 
     group = parser.add_argument_group('Graph traversal cleaning')
-    group.add_argument('--min-tip-length', type=int, default=0,
-                       help='Prune tips shorter than this value')
+    group.add_argument('--min-tip-length', type=int, default=-1,
+                       help='Prune tips shorter than this value.'
+                       ' A value of -1 sets the min tip length to the value of --kmer-size')
     group.add_argument('--min-unitig-coverage', type=int, default=4,
                        help="Prune unitigs with mean coverage below this value")
     group.add_argument('--prune-tips-with-mccortex', action='store_true',
@@ -104,9 +105,13 @@ def assemble_main(argv):
                             "counts must be above the --estimated-count-threshold")
     group.add_argument('--record-buffer-size', type=int, default=-1,
                        help='Number of reads to buffer in memory when assigning reads to subgraphs')
-    group.add_argument('--max-junctions', type=int, default=0)
+    group.add_argument('--max-junctions', type=int, default=0,
+                       help='The max junctions argument can be used to quickly ignore large subgraphs',
+                       ' with too many junctions to process effectively.')
 
     args = parser.parse_args(args=argv)
+    if args.min_tip_length == -1:
+        args.min_tip_length = args.kmer_size
     make_file_paths_absolute(args)
     validate_assemble_args(args, parser)
 
