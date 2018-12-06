@@ -108,7 +108,8 @@ Citing
 ------
 
 If you use abeona in your research, please cite:
-``Akhter S, Kretzschmar WW, Nordal V, Delhomme N, Street NR, Nilsson O, Emanuelsson O, Sundström JF. Integrative Analysis of Three RNA Sequencing Methods Identifies Mutually Exclusive Exons of MADS-Box Isoforms During Early Bud Development in Picea abies. Front. Plant Sci. 9, 1–18 (2018).``
+
+    Akhter S, Kretzschmar WW, Nordal V, Delhomme N, Street NR, Nilsson O, Emanuelsson O, Sundström JF. Integrative Analysis of Three RNA Sequencing Methods Identifies Mutually Exclusive Exons of MADS-Box Isoforms During Early Bud Development in Picea abies. Front. Plant Sci. 9, 1–18 (2018).``
 
 Changelog
 ---------
