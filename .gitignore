@@ -104,3 +104,4 @@ fixtures/
 .benchmarks/
 prof/
 miniconda/
+scratch/
