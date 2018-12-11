@@ -409,11 +409,14 @@ process kallistoQuant {
 	.join(gid_assigned_reads_for_kallisto_quant_ch)
 
     output:
-    set gid, file(fasta), file('g*') into kallisto_quants
+    set(gid, file(fasta), file('g*')) optional true into kallisto_quants
 
     """
     #!/usr/bin/env python3
+    import subprocess
     from subprocess import run
+    import shutil
+    import sys
 
     cmd = 'kallisto quant --threads $params.kallisto_threads -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
     if '$params.kallisto_fastx_single' == 'null':
@@ -424,7 +427,14 @@ process kallistoQuant {
             ' --single $reads'
         )
     print(cmd)
-    run(cmd, check=True, shell=True)
+    completed_process = run(cmd, shell=True, stderr=subprocess.PIPE)
+    print(completed_process.stderr, file=sys.stderr)
+
+    if completed_process.returncode != 0:
+        if b'[~warn] no reads pseudoaligned.' in completed_process.stderr:
+            shutil.rmtree('g$gid')
+            exit()
+    exit(completed_process.returncode)
     """
 }
 

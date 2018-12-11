@@ -252,7 +252,7 @@ class AbeonaSubgraphExpectation(object):
                 assert kmer in links.body.keys()
 
 
-class TestAssemble(object):
+class TestAssemble:
     def test_raises_without_input(self, tmpdir):
         b = FastqBuilder(tmpdir / 'input.fastq')
         input_fastq = b.build()
@@ -967,3 +967,45 @@ class TestCandidateTranscriptAnnotation:
         expect.has_out_all_transcripts(seq_prefix + 'ACAACCC', seq_prefix + 'ACAACGG')
         expect.has_out_all_transcript_description_matching(
             'prop_bs_est_counts_ge_2.0=[\d\.]+;est_count=8')
+
+
+class TestBugsFromUsers:
+    def test_ignores_subgraph_that_does_not_pseudoalign(self, tmpdir):
+        # given
+        b = PairedFastqBuilder(tmpdir / 'forward.fq', tmpdir / 'reverse.fq')
+        read_pairs = list(
+            zip(
+                (l.lstrip() for l in """AGGACATAAAGCTCACGTGAGGTAATTACTTGAAGAAATTCCATTTAGAAGTTGTTCCTCTAGACATTGACTGGGCTGCCTAAGCCAACGTACTTCAATGGACTGAGGACATAAAGCTCACGTGAG
+                GACATTGATTGAGCTGCCTAAGCCAACGTAGTTCAATGGATTGAGGACATAAAGCTCACGTGAGGTAATTACTTGAAGAAATTCCATTTAGAAGTTGTTCCTCTAGACATTGACTGGGCTGCCTAA
+                GACATTGATTGAGCTGCCTAAGCCAACGTAGTTCAATGGATTGAGGACATAAAGCTCACGTGAGGTAATTACTTGAAGAAATTCCATTTAGAAGTTGTTCCTCTAGACATTGACTGGGCTGCCTAA
+                GAGACATTGATTGAGCTGCCTAAGCCAACGTAGTTCAATGGATTGAGGACATAAAGCTCACGTGAGGTAATTACTTGAAGAAATTCCATTTAGAAGTTGTTCCTCTAGACATGGACTGGGCTGCCT
+            """.split('\n')),
+                (l.lstrip() for l in """CCGGGAGCAAATTGGGTTGAAGTCACAACAAAGTTTAAGCAATGGTATGAACAAGTTTTCGCGAGGATAGAGGAACAACTTCTAAATGGAATTTCTTCAAGTAATTACCTCACGTGAGCTTTATGT
+                GCAAATTGGGTTGAAGTCACAACAAAGTTTAAGCAATGGTATGAACAAGTTTTCGCGAGGATAGAGGAACAACTTCTAAATGGAATTTCTTCAAGTAATTACCTCACGTGAGCTTTATGTCCTCAG
+                GCAAATTGGGTTGAAGTCACAACAAAGTTTAAGCAATGGTATGAACAAGTTTTCGCGAGGATAGAGGAACAACTTCTAAATGGAATTTCTTCAAGTAATTACCTCACGTGAGCTTTATGTCCTCAG
+                CACAACAAAGTTTAAGCAATGGTATGAACAAGTTTTCGCGAGGATAGAGGAACAACTTCTAAATGGAATTTCTTCAAGTAATTACCTCACGTGAGCTTTATGTCCTCAGTCCATTGAAGTACGTTG
+            """.split('\n'))
+            )
+        )
+        print(read_pairs)
+        for rp in read_pairs:
+            b.with_pair(*rp)
+
+        forward, reverse = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-forward', forward,
+                '--fastx-reverse', reverse,
+                '--kallisto-fastx-forward', forward,
+                '--kallisto-fastx-reverse', reverse,
+                '--bootstrap-samples', 10,
+                '--out-dir', out_dir,
+                '--kmer-size', 55,
+                ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_all_transcripts()
