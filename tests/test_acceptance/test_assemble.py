@@ -974,12 +974,13 @@ class TestBugsFromUsers:
         forward, reverse = b.build()
 
         out_dir = Path(tmpdir) / 'abeona'
-        args = ['--fastx-forward', forward,
-                '--fastx-reverse', reverse,
-                '--bootstrap-samples', 10,
-                '--out-dir', out_dir,
-                '--kmer-size', 55,
-                ]
+        args = [
+            '--fastx-forward', forward,
+            '--fastx-reverse', reverse,
+            '--bootstrap-samples', 10,
+            '--out-dir', out_dir,
+            '--kmer-size', 55,
+        ]
 
         # when
         AbeonaRunner().assemble(*args)
@@ -987,3 +988,20 @@ class TestBugsFromUsers:
         # then
         expect = AbeonaExpectation(out_dir)
         expect.has_out_all_transcripts()
+
+    def test_ignores_subgraphs_where_cortexpy_link_traversal_fails(self, tmpdir):
+        # given
+        fixtures = Path('tests/fixtures/2018-12-13')
+        forward, reverse = fixtures / '1.fa', fixtures / '2.fa'
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--fastx-forward', forward,
+            '--fastx-reverse', reverse,
+            '--bootstrap-samples', 10,
+            '--out-dir', out_dir,
+            '--kmer-size', 47,
+        ]
+
+        # when/then (no error)
+        AbeonaRunner().assemble(*args)
+

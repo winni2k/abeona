@@ -251,6 +251,7 @@ process candidateTranscripts {
     """
     #!/usr/bin/env python3
 
+    import sys
     import shutil
     import gzip
     import subprocess
@@ -272,7 +273,10 @@ process candidateTranscripts {
     set -o pipefail
     {cortexpy_cmd} | gzip -c > {fasta}.tmp
     '''
-    exitcode = subprocess.run(cmd, shell=True, executable='/bin/bash').returncode
+    completed_process = subprocess.run(cmd, shell=True, executable='/bin/bash', stderr=subprocess.PIPE)
+    print(completed_process.stderr, file=sys.stderr)
+
+    exitcode = completed_process.returncode
     if exitcode == 0:
         shutil.move(f'{fasta}.tmp', fasta)
         n_seqs = 0
@@ -287,10 +291,12 @@ process candidateTranscripts {
             shutil.move(fasta, transcript)
         elif n_seqs == 0 or n_long_seqs == 0:
             shutil.move(fasta, skipped)
-    elif exitcode != CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
-        exit(exitcode)
-    else:
+    elif exitcode == CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
         shutil.move(f'{fasta}.tmp', skipped)
+    elif b'ValueError: Links do not appear to match unitigs' in completed_process.stderr:
+        shutil.move(f'{fasta}.tmp', skipped)
+    else:
+        exit(exitcode)
     """
 
 }
