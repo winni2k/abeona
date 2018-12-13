@@ -4,12 +4,12 @@ println params
 
 reads_ch = Channel
     .from(
-        params.kallisto_fastx_single,
-        params.kallisto_fastx_forward,
-        params.kallisto_fastx_reverse
+        params.fastx_single,
+        params.fastx_forward,
+        params.fastx_reverse
     )
     .collect()
-    .map { it[0] == null ? [true, [file(it[1]), file(it[2])]] : [false, file(it[0])] }
+    .map { it[1] != null ? [true, [file(it[1]), file(it[2])]] : [false, file(it[0])] }
 
 
 process fullCortexGraph {
@@ -419,7 +419,7 @@ process kallistoQuant {
     import sys
 
     cmd = 'kallisto quant --threads $params.kallisto_threads -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
-    if '$params.kallisto_fastx_single' == 'null':
+    if '$params.fastx_single' == 'null':
         cmd += ' $reads'
     else:
         cmd += (

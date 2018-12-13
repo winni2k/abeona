@@ -259,7 +259,6 @@ class TestAssemble:
         out_dir = Path(tmpdir) / 'abeona'
         args = [
             '--fastx-single', input_fastq,
-            '--kallisto-fastx-single', input_fastq,
             '--kallisto-fragment-length', 31,
             '--kallisto-sd', 0.1,
             '--bootstrap-samples', 100,
@@ -285,7 +284,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -326,7 +324,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -385,7 +382,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 7,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -418,7 +414,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 7,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -452,7 +447,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 7,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -493,8 +487,6 @@ class TestAssemble:
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-forward', forward,
                 '--fastx-reverse', reverse,
-                '--kallisto-fastx-forward', forward,
-                '--kallisto-fastx-reverse', reverse,
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
@@ -535,8 +527,6 @@ class TestAssemble:
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-forward', forward,
                 '--fastx-reverse', reverse,
-                '--kallisto-fastx-forward', forward,
-                '--kallisto-fastx-reverse', reverse,
                 '--bootstrap-samples', 100,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
@@ -573,7 +563,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -623,7 +612,6 @@ class TestAssemble:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -658,7 +646,6 @@ class TestAssemble:
         out_dir = Path(tmpdir) / 'abeona'
         args = [
             '--fastx-single', input_fastq,
-            '--kallisto-fastx-single', input_fastq,
             '--kallisto-fragment-length', 31,
             '--kallisto-sd', 0.1,
             '--bootstrap-samples', 100,
@@ -704,7 +691,6 @@ class TestLinks:
         out_dir = Path(tmpdir) / 'abeona'
         args = [
             '--fastx-single', input_fastq,
-            '--kallisto-fastx-single', input_fastq,
             '--kallisto-fragment-length', 7,
             '--kallisto-sd', 0.1,
             '--bootstrap-samples', 100,
@@ -751,7 +737,6 @@ class TestMaxPaths:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -788,7 +773,6 @@ class TestMaxPaths:
 
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -831,7 +815,6 @@ class TestInitialSeqsFasta:
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--initial-contigs', inital_contigs_fasta,
                 '--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -873,7 +856,6 @@ class TestInitialSeqsFasta:
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--initial-contigs', inital_contigs_fasta,
                 '--fastx-single', input_fastq,
-                '--kallisto-fastx-single', input_fastq,
                 '--kallisto-fragment-length', len(sequences[0]),
                 '--kallisto-sd', 0.1,
                 '--bootstrap-samples', 100,
@@ -911,7 +893,6 @@ class TestParametrizeFiltering:
             '--bootstrap-proportion-threshold', 1,
             '--estimated-count-threshold', estimated_count_threshold,
             '--fastx-single', input_fastq,
-            '--kallisto-fastx-single', input_fastq,
             '--kallisto-fragment-length', 4,
             '--kallisto-sd', 0.1,
             '--bootstrap-samples', 100,
@@ -950,7 +931,6 @@ class TestCandidateTranscriptAnnotation:
         args = [
             '--estimated-count-threshold', 2,
             '--fastx-single', input_fastq,
-            '--kallisto-fastx-single', input_fastq,
             '--kallisto-fragment-length', 4,
             '--kallisto-sd', 0.1,
             '--bootstrap-samples', 100,
@@ -996,8 +976,6 @@ class TestBugsFromUsers:
         out_dir = Path(tmpdir) / 'abeona'
         args = ['--fastx-forward', forward,
                 '--fastx-reverse', reverse,
-                '--kallisto-fastx-forward', forward,
-                '--kallisto-fastx-reverse', reverse,
                 '--bootstrap-samples', 10,
                 '--out-dir', out_dir,
                 '--kmer-size', 55,

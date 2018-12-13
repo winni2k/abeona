@@ -79,12 +79,6 @@ def assemble_main(argv):
                                       description='Arguments passed directly on to kallisto')
     group.add_argument('--bootstrap-samples', type=int, default=100,
                        help='Number of kallisto bootstrap samples')
-    group.add_argument('--kallisto-fastx-forward',
-                       help='Forward sequences in FASTA/FASTQ format to use for quantification')
-    group.add_argument('--kallisto-fastx-reverse',
-                       help='Reverse sequences in FASTA/FASTQ format to use for quantification')
-    group.add_argument('--kallisto-fastx-single',
-                       help='Single-end sequences in FASTA/FASTQ format to use for quantification')
     group.add_argument('--kallisto-fragment-length', type=float)
     group.add_argument('--kallisto-sd', type=float)
     group.add_argument('--kallisto-threads', type=int, default=2,
@@ -159,7 +153,7 @@ def estimate_max_read_length(args):
     from itertools import islice
     n_reads_to_read = 100
     max_read_length = None
-    for arg in ['kallisto_fastx_single', 'kallisto_fastx_forward', 'kallisto_fastx_reverse']:
+    for arg in ['fastx_single', 'fastx_forward', 'fastx_reverse']:
         file = getattr(args, arg)
         if file is not None:
             with get_maybe_gzipped_file_handle(file, 'rt') as fh:
@@ -221,16 +215,9 @@ def validate_assemble_args(args, parser):
     if (args.fastx_forward is None) != (args.fastx_reverse is None):
         raise parser.error(
             'Both --fastx-forward and --fastx-reverse must be specified or not specified')
-    if not args.fastx_forward and not args.fastx_single:
-        raise parser.error('Need to specify --fastx-forward and/or --fastx-single')
-
-    if (args.kallisto_fastx_forward is None) != (args.kallisto_fastx_reverse is None):
-        raise parser.error('Both --kallisto-fastx-forward and --kallisto-fastx-reverse'
-                           ' must be specified or not specified')
-    if (args.kallisto_fastx_forward is None) == (args.kallisto_fastx_single is None):
-        raise parser.error('Need to specify only --kallisto-fastx-forward'
-                           ' or --kallisto-fastx-single')
-    if args.kallisto_fastx_single is not None:
+    if (args.fastx_forward is None) == (args.fastx_single is None):
+        raise parser.error('Need to specify --fastx-forward or --fastx-single')
+    if args.fastx_single is not None:
         if args.kallisto_fragment_length is None:
             raise parser.error('Required: --kallisto-fragment-length')
         if args.kallisto_sd is None:
@@ -243,7 +230,6 @@ def make_file_paths_absolute(args):
     from pathlib import Path
     for file_arg in [
         'fastx_forward', 'fastx_reverse', 'fastx_single', 'initial_contigs',
-        'kallisto_fastx_forward', 'kallisto_fastx_reverse', 'kallisto_fastx_single'
     ]:
         file = getattr(args, file_arg)
         if file is not None:

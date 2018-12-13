@@ -114,6 +114,26 @@ If you use abeona in your research, please cite:
 Changelog
 ---------
 
+Version 0.41.0
+~~~~~~~~~~~~~~
+
+:Date: 2018-12-13
+
+Interface changes
+.................
+
+* Remove ``--kallisto-fastx-*`` arguments. Being able to separately specify reads to graph building
+and kallisto has not been all that useful, and it increases the complexity of the code.
+* Add default value of ``--kmer-size`` for ``--min-tip-length``.
+
+Fixes
+.....
+
+* There are several ways in which kallisto can fail due to no reads pseudoaligning to a subgraph's
+candidate transcripts. When this happens, abeona now catches the error and silently ignores the
+subgraph.
+
+
 Version 0.40.0
 ~~~~~~~~~~~~~~
 
