@@ -193,7 +193,6 @@ process singleTranscripts {
     fi
     \$cmd | gzip -c > g${gid}.transcripts.fa.gz.tmp
     mv g${gid}.transcripts.fa.gz.tmp g${gid}.transcripts.fa.gz
-    gzip -dc g${gid}.transcripts.fa.gz
     """
 }
 
