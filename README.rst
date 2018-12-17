@@ -114,6 +114,20 @@ If you use abeona in your research, please cite:
 Changelog
 ---------
 
+Version 0.42.0
+~~~~~~~~~~~~~~
+
+:Date: 2018-12-17
+
+Interface Changes
+.................
+
+* Cleanup now deletes all directories in output dir except for ``all_transcripts/transcripts.fa.gz``
+* Cleanup is now on by default
+* Cleanup can be turned off with ``--no-cleanup`` flag
+* ``all_transcripts/transcripts.fa.gz`` is unzipped and stored as ``transcripts.fa`` to conform
+to the convention set by Trinity and Oases for output file names
+
 Version 0.41.0
 ~~~~~~~~~~~~~~
 
