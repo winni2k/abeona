@@ -22,10 +22,12 @@ class AbeonaRunner:
         argv = ['abeona'] + [str(a) for a in args]
         check_call(argv)
 
-    def assemble(self, *args):
+    def assemble(self, *args, no_cleanup=True):
         argv = ['assemble'] + list(args)
         if '--min-tip-length' not in argv:
             argv += ['--min-tip-length', '0']
+        if no_cleanup:
+            argv.append('--no-cleanup')
         return self.run(*argv)
 
 
@@ -101,7 +103,7 @@ class AbeonaExpectation(object):
         self.out_clean_tip_pruned = self.out_clean.with_suffix(
             f'.min_tip_length_{self.prune_length}.ctx')
         self.traversal_dir = self.out_dir / 'traversals'
-        self.all_transcripts = self.out_dir / 'all_transcripts' / 'transcripts.fa.gz'
+        self.all_transcripts = self.out_dir / 'transcripts.fa'
         self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
                           for i, _ in
                           enumerate(self.traversal_dir.glob(f'g*.traverse.ctx'))]
@@ -151,13 +153,13 @@ class AbeonaExpectation(object):
             assert 0 == len(seqs)
             return self
         expected_seqs = [lexlo(s) for s in seqs]
-        with gzip.open(self.all_transcripts, 'rt') as fh:
+        with open(self.all_transcripts, 'rt') as fh:
             seqs = [str(lexlo(rec.seq)) for rec in SeqIO.parse(fh, 'fasta')]
         assert sorted(expected_seqs) == sorted(seqs)
         return self
 
     def has_out_all_transcript_description_matching(self, regex):
-        with gzip.open(self.all_transcripts, 'rt') as fh:
+        with open(self.all_transcripts, 'rt') as fh:
             descs = [rec.description for rec in SeqIO.parse(fh, 'fasta')]
         desc_re = re.compile(regex)
         assert any(desc_re.search(d) for d in descs)
@@ -171,6 +173,10 @@ class AbeonaExpectation(object):
         with open(graph, 'rb') as fh:
             output_kmers = list(kmer_string_generator_from_stream(fh))
         assert sorted(kmers) == sorted(output_kmers)
+
+    def has_out_dirs(self, *dirs):
+        assert sorted(dirs) == sorted(d.name for d in self.out_dir.iterdir() if d.is_dir())
+        return self
 
 
 @attr.s(slots=True)
@@ -271,6 +277,27 @@ class TestAssemble:
         with pytest.raises(Exception):
             AbeonaRunner().assemble(*args)
 
+    def test_cleanup(self, tmpdir):
+        b = FastqBuilder(tmpdir / 'single.fq')
+        b.with_seq('AAAC')
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', b.build(),
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 10,
+                '--out-dir', out_dir,
+                '--kmer-size', 3,
+                '--min-unitig-coverage', 0, ]
+
+        # when
+        AbeonaRunner().assemble(*args, no_cleanup=False)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_all_transcripts('AAAC')
+        expect.has_out_dirs('.nextflow')
+
     def test_traverses_two_subgraphs_into_two_transcripts(self, tmpdir):
         # given
         kmer_size = 3
@@ -286,7 +313,7 @@ class TestAssemble:
         args = ['--fastx-single', input_fastq,
                 '--kallisto-fragment-length', 3,
                 '--kallisto-sd', 0.1,
-                '--bootstrap-samples', 100,
+                '--bootstrap-samples', 10,
                 '--out-dir', out_dir,
                 '--kmer-size', kmer_size,
                 '--min-unitig-coverage', 0, ]
@@ -1004,4 +1031,3 @@ class TestBugsFromUsers:
 
         # when/then (no error)
         AbeonaRunner().assemble(*args)
-

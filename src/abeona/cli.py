@@ -34,11 +34,13 @@ def assemble_main(argv):
     parser.add_argument('-o', '--out-dir', help='Output directory', required=True)
     parser.add_argument('-j', '--jobs', help='Number of jobs to schedule concurrently', default=2,
                         type=int)
-    parser.add_argument('-k', '--kmer-size', default=47, help='k-mer size to use to construct the De Bruijn graph')
+    parser.add_argument('-k', '--kmer-size', default=47,
+                        help='k-mer size to use to construct the De Bruijn graph')
     parser.add_argument('-m', '--memory', default=3, help='Maximum memory to use in giga bytes',
                         type=int)
     parser.add_argument('-q', '--quiet', action='store_true')
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--no-cleanup', action='store_true')
     parser.add_argument('--with-report', action='store_true',
                         help='Create nextflow report file at nexttflow_report.html in output directory')
     parser.add_argument('--with-dag', action='store_true',
@@ -145,7 +147,19 @@ def assemble_main(argv):
     if args.resume:
         cmd += ' -resume'
     logger.info(cmd)
-    return subprocess.run(cmd, shell=True).returncode
+    cprocess = subprocess.run(cmd, shell=True)
+    if cprocess.returncode != 0:
+        return cprocess.returncode
+    subprocess.run(
+        f'gzip -dc {out_dir/"all_transcripts"/"transcripts.fa.gz"} > {out_dir/"transcripts.fa"}',
+        shell=True
+    )
+    import shutil
+    if not args.no_cleanup:
+        for d in out_dir.iterdir():
+            if d.is_dir() and not d.name.startswith('.'):
+                shutil.rmtree(d)
+    return cprocess.returncode
 
 
 def estimate_max_read_length(args):

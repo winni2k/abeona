@@ -515,7 +515,7 @@ all_transcripts = nonkallisto_single_transcripts_ch.map{ it[1] }
     .collectFile(storeDir: 'transcripts')
 
 process concatTranscripts {
-    publishDir 'all_transcripts'
+    publishDir 'all_transcripts', mode: 'copy', overwrite: false
 
     input:
     file inputs from all_transcripts.collect()
