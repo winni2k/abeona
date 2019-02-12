@@ -107,8 +107,8 @@ process traverseCortexSubgraphs {
     file graph from pruned_for_traverse_ch
 
     output:
-    file '*.traverse.ctx' into traversals_ch
-    file '*.traverse.ctx.json' into traversal_jsons_ch
+    file 'subgraphs.zip' into traversals_zip_ch
+    file 'subgraphs.meta.csv' into traversals_meta_file_ch
 
     """
     #!/usr/bin/env python3
@@ -121,19 +121,37 @@ process traverseCortexSubgraphs {
     """
 }
 
+traversals_meta_file_ch
+    .splitCsv(skip: 1)
+    .map{[it[0].replaceAll('"g', "").replaceAll('"', "").toInteger(), it[1].replaceAll('"', "").toInteger()]}
+    .combine(traversals_zip_ch)
+    .into{ traversals_meta_ch; traversals_meta_2_ch }
+
+process convertZippedGraphsToFiles {
+    input:
+    set gid, n_junctions, file(graphs) from traversals_meta_ch
+
+    output:
+    set gid, file("g${gid}.traverse.ctx") into traversals_ch
+
+    """
+    #!/usr/bin/env python3
+    from zipfile import ZipFile
+
+    with ZipFile('$graphs') as zfh:
+        zfh.extract('g${gid}.traverse.ctx')
+    """
+}
+
+
 gid_assigned_reads_for_links_ch = Channel.create()
 // Extract graph id and pass it along in the pipeline
 gid_traversals_for_thread_reads_ch = Channel.create()
 gid_traversals_for_skipped_bc_too_large_ch = Channel.create()
 traversals_ch
-    .flatten()
-    .map { file ->
-           def file_name = file.name.toString()
-           def match = file_name =~ /g(\d+)/
-           return tuple(match[0][1], tuple(file))
-     }
-    .into{gid_traversals_for_candidate_transcripts_ch;
-          gid_traversals_for_single_transcripts_ch;
+    .into{
+      gid_traversals_for_candidate_transcripts_ch;
+      gid_traversals_for_single_transcripts_ch;
 	  gid_traversals_for_subgraph_list_ch;
 	  gid_traversals_for_thread_reads_ch;
 	  gid_traversals_for_skipped_bc_too_large_ch
@@ -153,26 +171,14 @@ gid_traversals_for_subgraph_list_ch
     .into{gid_traversals_for_subgraph_list1_ch;
           gid_traversals_for_subgraph_list2_ch}
 
-
-gid_traversal_jsons_ch = traversal_jsons_ch
-    .flatten()
-    .map { file ->
-           def file_name = file.name.toString()
-           def match = file_name =~ /g(\d+)/
-           return tuple(match[0][1], file)
-     }
-
 gid_one_unitig_ch = Channel.create()
 skipped_bc_too_large_ch = Channel.create()
-gid_traversal_jsons_ch
-    .map { gid, json ->
-    slurper =  new groovy.json.JsonSlurper()
-    return tuple(gid, slurper.parseText(new File("$json").getText('UTF-8'))['n_junctions'] as Integer)
-}
+traversals_meta_2_ch
+    .map{ it[0..1] }
     .choice(gid_one_unitig_ch, skipped_bc_too_large_ch, gid_several_unitigs_ch){ vals ->
         if (vals[1] == 0) {return 0}
-	if (params.max_junctions > 0 && vals[1] > params.max_junctions) {return 1}
-	return 2
+	    if (params.max_junctions > 0 && vals[1] > params.max_junctions) {return 1}
+	    return 2
     }
 
 process singleTranscripts {
@@ -246,7 +252,6 @@ process candidateTranscripts {
     output:
     set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into separate_candidate_transcripts_ch
     set(gid, file('g*.candidate_transcripts.fa.gz.skipped'), file(graph)) optional true into skipped_subgraphs_ch
-
     """
     #!/usr/bin/env python3
 
@@ -261,7 +266,7 @@ process candidateTranscripts {
     CORTEXPY_EXIT_CODES = load(open(get_exit_code_yaml_path(), 'rt'))
 
     fasta = 'g${gid}.candidate_transcripts.fa.gz'
-    transcript = 'g${gid}.transcripts.fa.gz'
+    transcript = 'g${gid}.transcript.fa.gz'
     skipped = f'{fasta}.skipped'
     cortexpy_cmd = f'cortexpy traverse --max-paths $params.max_paths_per_subgraph --graph-index ${gid} $graph'
     if '$params.no_links' == 'false':
@@ -273,7 +278,7 @@ process candidateTranscripts {
     {cortexpy_cmd} | gzip -c > {fasta}.tmp
     '''
     completed_process = subprocess.run(cmd, shell=True, executable='/bin/bash', stderr=subprocess.PIPE)
-    print(completed_process.stderr, file=sys.stderr)
+    print(completed_process.stderr.decode(), file=sys.stderr)
 
     exitcode = completed_process.returncode
     if exitcode == 0:
@@ -287,7 +292,7 @@ process candidateTranscripts {
             if n_seqs > 1 and n_long_seqs > 0:
                 break
         if n_seqs == 1:
-            shutil.move(fasta, transcript)
+            raise 'Unexpected encounter of subgraph with single unitig'
         elif n_seqs == 0 or n_long_seqs == 0:
             shutil.move(fasta, skipped)
     elif exitcode == CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
@@ -398,7 +403,7 @@ assigned_reads_ch
     .map { file ->
            def file_name = file.name.toString()
            def match = file_name =~ /g(\d+).\d.fa$/
-           return tuple(match[0][1], file)
+           return tuple(match[0][1].toInteger(), file)
     }
     .groupTuple()
     .tap(gid_assigned_reads_for_links_ch)

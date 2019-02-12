@@ -1,6 +1,7 @@
-import gzip
+import csv
+import re
+import zipfile
 from pathlib import Path
-import json
 
 import attr
 from cortexpy.graph.parser.streaming import load_cortex_graph
@@ -53,26 +54,42 @@ from cortexpy.test.expectation import KmerGraphExpectation, Fasta
 
 @attr.s(slots=True)
 class AbeonaKmerGraphExpectation(KmerGraphExpectation):
-    graph_path = attr.ib(None)
-    meta = attr.ib(None)
+    meta_file = attr.ib(None)
+    gid = attr.ib(None)
+    meta = attr.ib(init=False)
+
+    def __attrs_post_init__(self):
+        self.meta = {}
+        with open(self.meta_file) as csvfile:
+            reader = csv.DictReader(csvfile, fieldnames=["gid", "n_junctions"])
+            for row in reader:
+                if row['gid'] == self.gid:
+                    self.meta = row
 
     def has_meta_info(self, key, val):
-        assert val == self.meta[key]
+        assert val == self.meta[key], (key, val, self.meta)
         return self
 
+
 @attr.s(slots=True)
-class Traversals:
-    traversals = attr.ib()
+class TraversalsExpectation:
+    traversals_zip = attr.ib()
     traversal_expectations = attr.ib(init=False)
 
     def __attrs_post_init__(self):
-        self.traversal_expectations = [
-            AbeonaKmerGraphExpectation(
-                load_cortex_graph(open(graph, 'rb')),
-                graph_path=graph,
-                meta=json.load(open(str(graph)+'.json', 'r'))
-            ) for graph in self.traversals
-        ]
+        self.traversal_expectations = []
+        gid_regex = re.compile('(g\d+)')
+        with zipfile.ZipFile(self.traversals_zip, 'r') as zfh:
+            for traversal_name in zfh.namelist():
+                gid = gid_regex.search(traversal_name).group(1)
+                with zfh.open(traversal_name, 'r') as fh:
+                    self.traversal_expectations.append(
+                        AbeonaKmerGraphExpectation(
+                            load_cortex_graph(fh),
+                            gid=gid,
+                            meta_file=str(Path(self.traversals_zip).with_suffix('.meta.csv')),
+                        )
+                    )
 
     def has_graph_with_kmers(self, *kmers):
         kmers = set(kmers)
@@ -109,10 +126,9 @@ class TraversalsAndFastas:
     traversals_expectation = attr.ib()
 
     def has_graph_with_kmers_and_mapped_reads(self, kmers, seqs, seqs2=None):
-        graph = self.traversals_expectation.has_graph_with_kmers(*kmers).graph_path
-        graph_stem = Path(graph).stem
+        gid = self.traversals_expectation.has_graph_with_kmers(*kmers).gid
 
-        fasta_expects = self.fastas_expection.has_fastas_with_prefix(graph_stem)
+        fasta_expects = self.fastas_expection.has_fastas_with_prefix(gid)
 
         seq_lists = [seqs]
         if seqs2 is not None:

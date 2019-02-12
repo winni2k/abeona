@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import zipfile
 from collections import OrderedDict
 from logging import getLogger
 from pathlib import Path
@@ -11,7 +12,7 @@ from Bio.SeqRecord import SeqRecord
 from cortexpy.test import runner
 
 from abeona.cli import main as abeona_main
-from .expectations import Traversals, Fastas, TraversalsAndFastas
+from .expectations import TraversalsExpectation, Fastas, TraversalsAndFastas
 
 logger = getLogger()
 
@@ -121,6 +122,7 @@ class CleanMccortex:
         logger.debug('\n' + ret.stdout.decode())
         return clean_graph
 
+
 @attr.s(slots=True)
 class SubgraphTestDriver:
     tmpdir = attr.ib()
@@ -156,9 +158,7 @@ class SubgraphTestDriver:
         args = ['abeona'] + [str(arg) for arg in command]
         abeona_main(args)
 
-        graphs = list(Path(out_dir).glob('g*.traverse.ctx'))
-
-        return Traversals(graphs)
+        return TraversalsExpectation(Path(out_dir) / 'subgraphs.zip')
 
 
 @attr.s(slots=True)
@@ -167,7 +167,8 @@ class ReadsTestDriver:
     record_buffer_size = attr.ib(None)
 
     def __getattr__(self, item):
-        if item in ['with_kmer_size', 'with_dna_sequence', 'with_dna_sequence_pair', 'with_min_unitig_coverage']:
+        if item in ['with_kmer_size', 'with_dna_sequence', 'with_dna_sequence_pair',
+                    'with_min_unitig_coverage']:
             return getattr(self.builder, item)
         else:
             raise ValueError(f'Could not find {item}')
@@ -179,7 +180,7 @@ class ReadsTestDriver:
     def run(self, tmpdir):
         out_dir = tmpdir / 'abeona_reads'
         traversal_expectation = SubgraphTestDriver(tmpdir, self.builder).run()
-        graphs = traversal_expectation.traversals
+        graphs = traversal_expectation.traversals_zip
 
         for idx in [1, 2]:
             subprocess.run(
@@ -191,8 +192,10 @@ class ReadsTestDriver:
         graph_list = tmpdir / 'subgraph_list.txt'
         with open(graph_list, 'w') as fh:
             fh.write('# prefix\tgraph\n')
-            for graph in graphs:
-                fh.write(f'{out_dir/graph.stem}\t{graph}\n')
+            with zipfile.ZipFile(graphs) as zfh:
+                for graph in zfh.namelist():
+                    fh.write(f'{out_dir / Path(graph).stem}\t{out_dir / graph}\n')
+                    zfh.extract(graph, path=out_dir)
 
         command = f'abeona reads --format fasta {graph_list} {tmpdir}/combined.1.fasta'
         if self.builder.is_paired:

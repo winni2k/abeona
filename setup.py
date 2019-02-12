@@ -35,7 +35,7 @@ setup(
     },
 
     install_requires="""
-    cortexpy >= 0.45.6
+    cortexpy >= 0.46.0
     pandas
     progressbar2
     pysam

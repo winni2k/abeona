@@ -1,6 +1,7 @@
 import gzip
 import itertools
 import re
+import zipfile
 from pathlib import Path
 from subprocess import check_call
 
@@ -91,6 +92,7 @@ class AbeonaExpectation(object):
     out_graph = attr.ib(init=False)
     out_clean = attr.ib(init=False)
     subgraphs = attr.ib(init=False)
+    subgraphs_zip = attr.ib(init=False)
     traversal_dir = attr.ib(init=False)
     out_clean_tip_pruned = attr.ib(init=False)
     all_transcripts = attr.ib(init=False)
@@ -104,32 +106,42 @@ class AbeonaExpectation(object):
             f'.min_tip_length_{self.prune_length}.ctx')
         self.traversal_dir = self.out_dir / 'traversals'
         self.all_transcripts = self.out_dir / 'transcripts.fa'
-        self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
-                          for i, _ in
-                          enumerate(self.traversal_dir.glob(f'g*.traverse.ctx'))]
         self.skipped_subgraphs = self.out_dir / 'skipped_subgraphs' / 'skipped_subgraphs.txt'
 
+        self.subgraphs_zip = self.traversal_dir / 'subgraphs.zip'
+        self.subgraphs = []
+        sg_pattern = re.compile('g(\d+)')
+        try:
+            with zipfile.ZipFile(self.subgraphs_zip, 'r') as zip_fh:
+                for sg in zip_fh.namelist():
+                    sg_id = sg_pattern.search(sg).group(1)
+                    self.subgraphs.append((sg_id, sg))
+        except FileNotFoundError:
+            pass
+
     def has_subgraph(self, sg_id):
-        return AbeonaSubgraphExpectation(self.out_dir, sg_id)
+        return AbeonaSubgraphExpectation.from_abeona_expectation(self, sg_id)
 
     def has_subgraph_with_kmers(self, *kmers):
         kmers = set(kmers)
         assert len(kmers) > 0
-        for sg_id, sg in enumerate(self.subgraphs):
-            with open(sg, 'rb') as fh:
-                subgraph_kmers = set(lexlo(n) for n in load_cortex_graph(fh))
+        for sg_id, sg in self.subgraphs:
+            with zipfile.ZipFile(self.subgraphs_zip, 'r') as zfh:
+                with zfh.open(sg, 'r') as fh:
+                    subgraph_kmers = set(lexlo(n) for n in load_cortex_graph(fh))
             if len(kmers & subgraph_kmers) > 0:
                 assert kmers == subgraph_kmers
-                return AbeonaSubgraphExpectation(self.out_dir, sg_id)
+                return AbeonaSubgraphExpectation.from_abeona_expectation(self, sg_id)
         assert kmers == set()
         return self
 
     def has_subgraph_with_kmer(self, kmer):
-        for sg_id, sg in enumerate(self.subgraphs):
-            with open(sg, 'rb') as fh:
-                subgraph_kmers = set(lexlo(n) for n in load_cortex_graph(fh))
+        for sg_id, sg in self.subgraphs:
+            with zipfile.ZipFile(self.subgraphs_zip, 'r') as zfh:
+                with zfh.open(sg, 'r') as fh:
+                    subgraph_kmers = set(lexlo(n) for n in load_cortex_graph(fh))
             if kmer in subgraph_kmers:
-                return AbeonaSubgraphExpectation(self.out_dir, sg_id)
+                return AbeonaSubgraphExpectation.from_abeona_expectation(self, sg_id)
         assert False, f'Could not find subgraph with kmer: {kmer}'
 
     def has_n_subgraphs(self, n):
@@ -180,22 +192,23 @@ class AbeonaExpectation(object):
 
 
 @attr.s(slots=True)
-class AbeonaSubgraphExpectation(object):
+class AbeonaSubgraphExpectation:
     out_dir = attr.ib()
     sg_id = attr.ib()
+    sg_traversal_name = attr.ib()
+    subgraphs_zip = attr.ib()
 
     def has_traversal_graph_with_kmers(self, *kmers):
-        subgraph = self.out_dir / 'traversals' / f'g{self.sg_id}.traverse.ctx'
-        assert subgraph.is_file()
-        output_kmers = list(kmer_string_generator_from_stream(open(subgraph, 'rb')))
-        assert set(kmers) == set(output_kmers)
+        with zipfile.ZipFile(self.subgraphs_zip, 'r') as zfh:
+            with zfh.open(self.sg_traversal_name, 'r') as fh:
+                output_kmers = set(kmer_string_generator_from_stream(fh))
+        assert set(kmers) == output_kmers
         return self
 
     def has_traversal(self):
-        subgraph = self.out_dir / 'traversals' / f'g{self.sg_id}.traverse.ctx'
-        assert subgraph.is_file()
-        graph = load_cortex_graph(open(subgraph, 'rb'))
-        return KmerGraphExpectation(graph)
+        with zipfile.ZipFile(self.subgraphs_zip, 'r') as zfh:
+            with zfh.open(self.sg_traversal_name, 'r') as fh:
+                return KmerGraphExpectation(load_cortex_graph(fh))
 
     def _has_transcripts(self, *expected_seq_strings, dir_name, suffix, id_check=True):
         transcripts = self.out_dir / dir_name / f'g{self.sg_id}{suffix}'
@@ -256,6 +269,12 @@ class AbeonaSubgraphExpectation(object):
             for kmer in kmers:
                 assert lexlo(kmer) == kmer
                 assert kmer in links.body.keys()
+
+    @classmethod
+    def from_abeona_expectation(cls, abeona_expectation, sg_id):
+        return cls(abeona_expectation.out_dir, sg_id,
+                   subgraphs_zip=abeona_expectation.subgraphs_zip,
+                   sg_traversal_name=f'g{sg_id}.traverse.ctx')
 
 
 class TestAssemble:

@@ -136,7 +136,7 @@ def assemble_main(argv):
         assert max_read_length is not None
         args_dict['max_read_length'] = max_read_length
 
-    args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.jobs}G'
+    args_dict['mccortex_thread_args'] = f'--force -m {args.memory // args.jobs}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
@@ -150,10 +150,16 @@ def assemble_main(argv):
     cprocess = subprocess.run(cmd, shell=True)
     if cprocess.returncode != 0:
         return cprocess.returncode
-    subprocess.run(
-        f'gzip -dc {out_dir/"all_transcripts"/"transcripts.fa.gz"} > {out_dir/"transcripts.fa"}',
-        shell=True
-    )
+    all_transcripts = out_dir / "all_transcripts" / "transcripts.fa.gz"
+    final_transcripts = out_dir / "transcripts.fa"
+    if not all_transcripts.is_file():
+        final_transcripts.touch()
+    else:
+        subprocess.run(
+            f'gzip -dc {all_transcripts} > {final_transcripts}',
+            shell=True,
+            check=True
+        )
     import shutil
     if not args.no_cleanup:
         for d in out_dir.iterdir():

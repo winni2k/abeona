@@ -1,5 +1,7 @@
-import json
+import io
+import csv
 import logging
+import zipfile
 from pathlib import Path
 
 import attr
@@ -61,6 +63,8 @@ def count_junctions(graph):
 def main(args):
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
+    out_path = out_dir / 'subgraphs.zip'
+    out_meta_data = out_dir / 'subgraphs.meta.csv'
 
     input_graph = Path(args.graph)
     if not input_graph.is_file():
@@ -74,30 +78,39 @@ def main(args):
         kstring_tracker = KmerStringTracker(unseen=ra)
     graph_idx = 0
 
-    with progressbar.ProgressBar(max_value=len(ra)) as bar:
-        for initial_kmer_string in kstring_tracker.strings_not_seen():
-            graph_id = f'g{graph_idx}'
-            subgraph_path = out_dir / f'{graph_id}.traverse.ctx'
+    with open(out_meta_data, 'w', newline='') as out_meta_fh:
+        fieldnames = ['gid', 'n_junctions']
+        writer = csv.DictWriter(out_meta_fh, dialect='unix', fieldnames=fieldnames)
+        writer.writeheader()
 
-            logger.debug('Traversing graph %s', graph_idx)
-            engine = Engine(
-                ra,
-                orientation=EngineTraversalOrientation.both,
-                max_nodes=None,
-                logging_interval=90
-            )
-            engine.traverse_from(str(initial_kmer_string))
+        with zipfile.ZipFile(out_path, 'w', compression=zipfile.ZIP_DEFLATED) as out_zip_fh:
+            with progressbar.ProgressBar(max_value=len(ra)) as bar:
+                for initial_kmer_string in kstring_tracker.strings_not_seen():
+                    graph_id = f'g{graph_idx}'
+                    subgraph_path = f'{graph_id}.traverse.ctx'
 
-            logger.debug('Writing graph %s to: %s', graph_idx, subgraph_path)
-            with open(subgraph_path, 'wb') as out_fh:
-                dump_colored_de_bruijn_graph_to_cortex(engine.graph, out_fh)
-            with open(str(subgraph_path) + '.json', 'wt') as json_fh:
-                json.dump({'n_junctions': count_junctions(engine.graph)}, json_fh)
-            for node in engine.graph:
-                kstring_tracker.add_seen(lexlo(node))
-            logger.debug(
-                'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph),
-                len(ra) - len(kstring_tracker.seen))
-            bar.update(len(kstring_tracker.seen))
-            graph_idx += 1
+                    logger.debug('Traversing graph %s', graph_idx)
+                    engine = Engine(
+                        ra,
+                        orientation=EngineTraversalOrientation.both,
+                        max_nodes=None,
+                        logging_interval=90
+                    )
+                    engine.traverse_from(str(initial_kmer_string))
+
+                    logger.debug('Writing graph %s to: %s', graph_idx, subgraph_path)
+                    with out_zip_fh.open(subgraph_path, 'w', force_zip64=True) as out_fh:
+                        buffer = io.BytesIO()
+                        dump_colored_de_bruijn_graph_to_cortex(engine.graph, buffer)
+                        out_fh.write(buffer.getvalue())
+                    writer.writerow(
+                        {'gid': f'g{graph_idx}', 'n_junctions': count_junctions(engine.graph)}
+                    )
+                    for node in engine.graph:
+                        kstring_tracker.add_seen(lexlo(node))
+                    logger.debug(
+                        'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph),
+                        len(ra) - len(kstring_tracker.seen))
+                    bar.update(len(kstring_tracker.seen))
+                    graph_idx += 1
     logger.info('No kmers remaining')
