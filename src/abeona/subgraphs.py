@@ -98,6 +98,16 @@ def main(args):
                     )
                     engine.traverse_from(str(initial_kmer_string))
 
+                    for node in engine.graph:
+                        kstring_tracker.add_seen(lexlo(node))
+                    logger.debug(
+                        'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph),
+                        len(ra) - len(kstring_tracker.seen))
+                    bar.update(len(kstring_tracker.seen))
+
+                    if len(engine.graph) < args.min_n_kmers:
+                        continue
+
                     logger.debug('Writing graph %s to: %s', graph_idx, subgraph_path)
                     with out_zip_fh.open(subgraph_path, 'w', force_zip64=True) as out_fh:
                         buffer = io.BytesIO()
@@ -106,11 +116,5 @@ def main(args):
                     writer.writerow(
                         {'gid': f'g{graph_idx}', 'n_junctions': count_junctions(engine.graph)}
                     )
-                    for node in engine.graph:
-                        kstring_tracker.add_seen(lexlo(node))
-                    logger.debug(
-                        'Found subgraph with %s kmers - at most %s kmers left', len(engine.graph),
-                        len(ra) - len(kstring_tracker.seen))
-                    bar.update(len(kstring_tracker.seen))
                     graph_idx += 1
     logger.info('No kmers remaining')

@@ -117,14 +117,18 @@ process traverseCortexSubgraphs {
     cmd = 'abeona subgraphs $graph . -m $params.memory'
     if '$params.initial_contigs' != 'null':
         cmd += ' --initial-contigs $params.initial_contigs'
+    cmd += ' --min-n-kmers ' + str(int('$params.min_contig_size') - int('$params.kmer_size') + 1)
     run(cmd, shell=True, check=True)
     """
 }
 
-traversals_meta_file_ch
+traversals_meta_filtering_ch = traversals_meta_file_ch
     .splitCsv(skip: 1)
     .map{[it[0].replaceAll('"g', "").replaceAll('"', "").toInteger(), it[1].replaceAll('"', "").toInteger()]}
     .combine(traversals_zip_ch)
+
+traversals_meta_filtering_ch
+    .view()
     .into{ traversals_meta_ch; traversals_meta_2_ch }
 
 process convertZippedGraphsToFiles {

@@ -72,6 +72,9 @@ def assemble_main(argv):
                        help="Use Mccortex instead of cortexpy to prune unitigs.")
 
     group = parser.add_argument_group('Candidate transcript creation')
+    group.add_argument('--min-contig-size', type=int, default=-1,
+                       help='Filter contigs with less than N bases. '
+                            'Also skip subgraphs if N < subgraph_size + kmer_size - 1')
     group.add_argument('--max-paths-per-subgraph', type=int, default=0,
                        help='Ignore graphs that have more than this number of paths')
     group.add_argument('--no-links', action='store_true',
@@ -193,6 +196,7 @@ def subgraphs_main(argv):
     parser.add_argument('-c', '--cores', type=int, default=2)
     parser.add_argument('--initial-contigs', help='Only start assembly from contigs in this FASTA',
                         required=False)
+    parser.add_argument('--min-n-kmers', type=int, default=-1)
 
     args = parser.parse_args(argv)
 
