@@ -530,9 +530,23 @@ process concatTranscripts {
     file inputs from all_transcripts.collect()
 
     output:
+    file 'transcripts.concat.fa.gz' into all_transcript_file_ch
+
+    """
+    find . -maxdepth 1 -name '*.transcripts.fa.gz' -exec cat {} + > transcripts.concat.fa.gz
+    """
+}
+
+process filterAllTranscripts {
+    publishDir 'all_transcripts', mode: 'copy', overwrite: false
+
+    input:
+    file transcripts from all_transcript_file_ch
+
+    output:
     file 'transcripts.fa.gz'
 
     """
-    find . -maxdepth 1 -name '*.transcripts.fa.gz' -exec cat {} + > transcripts.fa.gz
+    seqtk seq -L $params.min_contig_size $transcripts | gzip -c > transcripts.fa.gz
     """
 }

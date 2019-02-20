@@ -105,7 +105,7 @@ def main(args):
                         len(ra) - len(kstring_tracker.seen))
                     bar.update(len(kstring_tracker.seen))
 
-                    if len(engine.graph) < args.min_n_kmers:
+                    if args.min_n_kmers > 0 and len(engine.graph) < args.min_n_kmers:
                         continue
 
                     logger.debug('Writing graph %s to: %s', graph_idx, subgraph_path)

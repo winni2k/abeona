@@ -1084,34 +1084,37 @@ class TestReadFilter:
         expect.has_subgraph_with_kmers('AAAAC', 'CAAAA', 'AAACC')
         expect.has_n_subgraphs(1)
 
-    # def test_filters_contigs_with_fewer_than_8_bases(self, tmpdir):
-    #     # given
-    #     b = FastqBuilder(tmpdir / 'single.fq')
-    #     for _ in range(1):
-    #         b.with_seqs(
-    #             'TAAAAT',
-    #             'TAAAAC',
-    #             'CAAAACC',
-    #         )
-    #
-    #     input_fastq = b.build()
-    #
-    #     out_dir = Path(tmpdir) / 'abeona'
-    #     args = [
-    #         '--fastx-single', input_fastq,
-    #         '--kallisto-fragment-length', 7,
-    #         '--kallisto-sd', 0.1,
-    #         '--bootstrap-samples', 100,
-    #         '--out-dir', out_dir,
-    #         '--kmer-size', 5,
-    #         '--min-unitig-coverage', 0,
-    #         '--min-contig-size', 7,
-    #     ]
-    #
-    #     # when
-    #     AbeonaRunner().assemble(*args)
-    #
-    #     # then
-    #     expect = AbeonaExpectation(out_dir)
-    #     expect.has_subgraph_with_kmers('AAAAC', 'CAAAA', 'AAACC')
-    #     expect.has_n_subgraphs(1)
+    def test_filters_contigs_with_fewer_than_8_bases(self, tmpdir):
+        # given
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(8):
+            b.with_seqs(
+                'GAAAGGA',  # 3 kmers
+                'AAAGGAG',  # 1 more
+                'AAAGGAC',  # 1 more
+                'CAAACCA',
+                'AAACCAC',
+                'AACCACC',
+            )
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--fastx-single', input_fastq,
+            '--kallisto-fragment-length', 5,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 100,
+            '--out-dir', out_dir,
+            '--kmer-size', 5,
+            '--min-unitig-coverage', 0,
+            '--min-tip-length', 0,
+            '--min-contig-size', 9,
+        ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_all_transcripts('CAAACCACC')
