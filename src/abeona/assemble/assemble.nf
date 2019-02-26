@@ -128,7 +128,6 @@ traversals_meta_filtering_ch = traversals_meta_file_ch
     .combine(traversals_zip_ch)
 
 traversals_meta_filtering_ch
-    .view()
     .into{ traversals_meta_ch; traversals_meta_2_ch }
 
 process convertZippedGraphsToFiles {
@@ -295,9 +294,7 @@ process candidateTranscripts {
                 n_long_seqs += 1
             if n_seqs > 1 and n_long_seqs > 0:
                 break
-        if n_seqs == 1:
-            raise 'Unexpected encounter of subgraph with single unitig'
-        elif n_seqs == 0 or n_long_seqs == 0:
+        if n_seqs == 0 or n_long_seqs == 0:
             shutil.move(fasta, skipped)
     elif exitcode == CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
         shutil.move(f'{fasta}.tmp', skipped)
