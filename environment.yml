@@ -5,6 +5,7 @@ channels:
   - defaults
 dependencies:
   - python=3.6
+  - conda-build
   - bwa
   - kallisto>=0.44.0
   - mccortex>=1.0
