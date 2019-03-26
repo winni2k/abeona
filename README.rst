@@ -114,6 +114,19 @@ If you use abeona in your research, please cite:
 Changelog
 ---------
 
+Version 0.44.0
+~~~~~~~~~~~~~~
+
+:Date: 2019-03-26
+
+This version skips commits made for the 0.43.0 tag.
+
+New features
+............
+
+* Reads that share kmers with subgraphs that are skipped are now reported in the
+  ``unassembled_reads`` directory.
+
 Version 0.42.0
 ~~~~~~~~~~~~~~
 
@@ -126,7 +139,7 @@ Interface Changes
 * Cleanup is now on by default
 * Cleanup can be turned off with ``--no-cleanup`` flag
 * ``all_transcripts/transcripts.fa.gz`` is unzipped and stored as ``transcripts.fa`` to conform
-to the convention set by Trinity and Oases for output file names
+  to the convention set by Trinity and Oases for output file names
 
 Version 0.41.0
 ~~~~~~~~~~~~~~
@@ -137,15 +150,15 @@ Interface changes
 .................
 
 * Remove ``--kallisto-fastx-*`` arguments. Being able to separately specify reads to graph building
-and kallisto has not been all that useful, and it increases the complexity of the code.
+  and kallisto has not been all that useful, and it increases the complexity of the code.
 * Add default value of ``--kmer-size`` for ``--min-tip-length``.
 
 Fixes
 .....
 
 * There are several ways in which kallisto can fail due to no reads pseudoaligning to a subgraph's
-candidate transcripts. When this happens, abeona now catches the error and silently ignores the
-subgraph.
+  candidate transcripts. When this happens, abeona now catches the error and silently ignores the
+  subgraph.
 
 
 Version 0.40.0
@@ -189,7 +202,7 @@ New features
 ............
 
 * Use kmer mapping (``abeona reads``) to assign reads to subgraphs before quantification of
-candidate transcripts with kallisto
+  candidate transcripts with kallisto
 
 Fixes
 .....
