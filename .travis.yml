@@ -8,8 +8,6 @@ os:
 - linux
 install:
 - source scripts/bootstrap
-- conda build conda_recipe
-- conda install abeona --use-local
 script:
 - conda list
 - make test
