@@ -5,6 +5,8 @@ IFS=$'\n\t'
 
 scripts/bootstrap
 
+python setup.py install
+
 MCCORTEX=${MCCORTEX:-'mccortex'}
 KMER_SIZE=${KMER_SIZE:-'47'}
 FIXTURE_DIR=fixtures/yeast
