@@ -1,24 +1,17 @@
 abeona
 ======
 
-.. start-badges
-
-.. list-table::
-    :stub-columns: 1
-
-    * - tests
-      - | |travis|
-    * - package
-      - | |commits-since|
-
-.. |travis| image:: https://travis-ci.org/winni2k/abeona.svg?branch=master
+.. image:: https://travis-ci.org/winni2k/abeona.svg?branch=master
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/winni2k/abeona
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/winni2k/abeona/v0.44.0.svg
+.. image:: https://img.shields.io/github/commits-since/winni2k/abeona/v0.44.0.svg
     :alt: Commits since latest release
     :target: https://github.com/winni2k/abeona/compare/v0.44.0...master
 
+.. image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat
+    :alt: freedom
+    :target: http://bioconda.github.io/recipes/abeona/README.html
 
 abeona v0.44.0
 
