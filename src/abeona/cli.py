@@ -76,6 +76,8 @@ def assemble_main(argv):
                        help='Ignore graphs that have more than this number of paths')
     group.add_argument('--no-links', action='store_true',
                        help='Do not use links in candidate transcript creation')
+    group.add_argument('--assemble-ignored-graphs-with-transabyss', action='store_true',
+                       help='Try and assemble ignored graphs with transabyss')
 
     group = parser.add_argument_group('kallisto arguments',
                                       description='Arguments passed directly on to kallisto')
@@ -136,7 +138,7 @@ def assemble_main(argv):
         assert max_read_length is not None
         args_dict['max_read_length'] = max_read_length
 
-    args_dict['mccortex_thread_args'] = f'--force -m {args.memory//args.jobs}G'
+    args_dict['mccortex_thread_args'] = f'--force -m {args.memory // args.jobs}G'
     with open(out_dir / args_file, 'w') as fh:
         json.dump(args_dict, fh)
     cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
@@ -150,10 +152,16 @@ def assemble_main(argv):
     cprocess = subprocess.run(cmd, shell=True)
     if cprocess.returncode != 0:
         return cprocess.returncode
-    subprocess.run(
-        f'gzip -dc {out_dir/"all_transcripts"/"transcripts.fa.gz"} > {out_dir/"transcripts.fa"}',
-        shell=True
-    )
+    gzipped_transcripts = out_dir / "all_transcripts" / "transcripts.fa.gz"
+    unzipped_transcripts = out_dir / "transcripts.fa"
+    if gzipped_transcripts.is_file():
+        subprocess.run(
+            f'gzip -dc {gzipped_transcripts} > {unzipped_transcripts}',
+            shell=True
+        )
+    else:
+        unzipped_transcripts.touch(exist_ok=True)
+
     import shutil
     if not args.no_cleanup:
         for d in out_dir.iterdir():

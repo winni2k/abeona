@@ -2,12 +2,13 @@ name: test-environment
 channels:
   - conda-forge
   - bioconda
+  - defaults
 dependencies:
   - python=3.6
-  - mccortex >=1.0
-  - nextflow ==19.01.0
-  - kallisto >=0.44.0
+  - bwa
+  - kallisto>=0.44.0
+  - mccortex>=1.0
+  - nextflow=19.01.0
   - samtools
   - seqtk
-  - bwa
   - tox

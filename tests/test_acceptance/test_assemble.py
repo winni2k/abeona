@@ -28,6 +28,7 @@ class AbeonaRunner:
             argv += ['--min-tip-length', '0']
         if no_cleanup:
             argv.append('--no-cleanup')
+        argv.append('--with-dag')
         return self.run(*argv)
 
 
@@ -95,6 +96,7 @@ class AbeonaExpectation(object):
     out_clean_tip_pruned = attr.ib(init=False)
     all_transcripts = attr.ib(init=False)
     skipped_subgraphs = attr.ib(init=False)
+    unassembled_reads_dir = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.out_dir = Path(self.out_dir)
@@ -104,6 +106,7 @@ class AbeonaExpectation(object):
             f'.min_tip_length_{self.prune_length}.ctx')
         self.traversal_dir = self.out_dir / 'traversals'
         self.all_transcripts = self.out_dir / 'transcripts.fa'
+        self.unassembled_reads_dir = self.out_dir / 'unassembled_reads'
         self.subgraphs = [self.traversal_dir / f'g{i}.traverse.ctx'
                           for i, _ in
                           enumerate(self.traversal_dir.glob(f'g*.traverse.ctx'))]
@@ -176,6 +179,12 @@ class AbeonaExpectation(object):
 
     def has_out_dirs(self, *dirs):
         assert sorted(dirs) == sorted(d.name for d in self.out_dir.iterdir() if d.is_dir())
+        return self
+
+    def has_n_unassembled_reads(self, *read_counts):
+        for idx, count in enumerate(read_counts):
+            with gzip.open(str(self.unassembled_reads_dir / f'reads{idx + 1}.fa.gz'), 'rt') as fh:
+                assert count == len(list(SeqIO.parse(fh, 'fasta')))
         return self
 
 
@@ -460,7 +469,8 @@ class TestAssemble:
         expect.has_out_all_transcripts('TAAAAATA',
                                        'GAAAAACA')
 
-    def test_ignores_subgraph_with_two_junctions(self, tmpdir):
+    @pytest.mark.parametrize('assemble_ignored_sg_with_transabyss', [True, False])
+    def test_ignores_subgraph_with_two_junctions(self, tmpdir, assemble_ignored_sg_with_transabyss):
 
         # given
         b = FastqBuilder(tmpdir / 'single.fq')
@@ -481,13 +491,59 @@ class TestAssemble:
                 '--kmer-size', 5,
                 '--max-junctions', 1,
                 '--min-unitig-coverage', 0]
+        if assemble_ignored_sg_with_transabyss:
+            args += ['--assemble-ignored-graphs-with-transabyss']
 
         # when
         AbeonaRunner().assemble(*args)
 
         # then
         expect = AbeonaExpectation(out_dir)
+
         expect.has_n_missing_subgraphs(1)
+        if assemble_ignored_sg_with_transabyss:
+            expect.has_n_unassembled_reads(16)
+        else:
+            expect.has_out_all_transcripts()
+
+    def test_ignores_two_subgraphs_with_two_junctions(self, tmpdir):
+
+        # given
+        b = FastqBuilder(tmpdir / 'single.fq')
+        for _ in range(4):
+            b.with_seqs(
+                'TAAAAAT',
+                'AAAATA',
+                'GAAAAAC',
+                'AAAACA',
+                'CCCAAA',
+                'TCCAAA',
+                'CCAAAC',
+                'CCAAAT',
+            )
+
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fragment-length', 7,
+                '--kallisto-sd', 0.1,
+                '--bootstrap-samples', 100,
+                '--out-dir', out_dir,
+                '--kmer-size', 5,
+                '--max-junctions', 1,
+                '--min-unitig-coverage', 0,
+                '--assemble-ignored-graphs-with-transabyss']
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+
+        expect.has_n_missing_subgraphs(2)
+        expect.has_n_unassembled_reads(8*4)
+        expect.has_out_all_transcripts()
 
     def test_with_read_pairs_traverses_graph_of_two_transcripts_into_two_transcripts(self, tmpdir):
 
@@ -1029,5 +1085,9 @@ class TestBugsFromUsers:
             '--kmer-size', 47,
         ]
 
-        # when/then (no error)
+        # when (no error)
         AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_n_unassembled_reads(1082, 1082)

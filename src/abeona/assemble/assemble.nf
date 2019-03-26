@@ -132,11 +132,12 @@ traversals_ch
            def match = file_name =~ /g(\d+)/
            return tuple(match[0][1], tuple(file))
      }
-    .into{gid_traversals_for_candidate_transcripts_ch;
-          gid_traversals_for_single_transcripts_ch;
-	  gid_traversals_for_subgraph_list_ch;
-	  gid_traversals_for_thread_reads_ch;
-	  gid_traversals_for_skipped_bc_too_large_ch
+    .into{
+        gid_traversals_for_candidate_transcripts_ch;
+        gid_traversals_for_single_transcripts_ch;
+        gid_traversals_for_subgraph_list_ch;
+        gid_traversals_for_thread_reads_ch;
+	    gid_traversals_for_skipped_bc_too_large_ch
      }
 
 gid_several_unitigs_for_subgraph_list_ch = Channel.create()
@@ -147,8 +148,37 @@ gid_several_unitigs_ch
         gid_several_unitigs_for_subgraph_list_ch;
     }
 
+gid_for_subgraph_list_ch = Channel.create()
+gid_skipped_bc_too_large_ch = Channel.create()
+gid_too_many_junctions_ch = Channel.create()
+if (params.assemble_ignored_graphs_with_transabyss) {
+    gid_skipped_bc_too_large_for_subgraph_list_ch = Channel.create()
+    gid_too_many_junctions_ch
+        .into{
+            gid_skipped_bc_too_large_ch;
+            gid_skipped_bc_too_large_for_subgraph_list_ch
+        }
+    gid_several_unitigs_for_subgraph_list_ch
+        .mix(
+            gid_skipped_bc_too_large_for_subgraph_list_ch
+        )
+        .set{
+            gid_for_subgraph_list_ch
+        }
+}
+else {
+    gid_several_unitigs_for_subgraph_list_ch
+        .set{
+            gid_for_subgraph_list_ch
+        }
+    gid_too_many_junctions_ch
+        .set{
+            gid_skipped_bc_too_large_ch
+        }
+}
+
 gid_traversals_for_subgraph_list_ch
-    .join(gid_several_unitigs_for_subgraph_list_ch)
+    .join(gid_for_subgraph_list_ch)
     .map{ it[0..1] }
     .into{gid_traversals_for_subgraph_list1_ch;
           gid_traversals_for_subgraph_list2_ch}
@@ -163,16 +193,17 @@ gid_traversal_jsons_ch = traversal_jsons_ch
      }
 
 gid_one_unitig_ch = Channel.create()
-skipped_bc_too_large_ch = Channel.create()
 gid_traversal_jsons_ch
     .map { gid, json ->
-    slurper =  new groovy.json.JsonSlurper()
-    return tuple(gid, slurper.parseText(new File("$json").getText('UTF-8'))['n_junctions'] as Integer)
-}
-    .choice(gid_one_unitig_ch, skipped_bc_too_large_ch, gid_several_unitigs_ch){ vals ->
+        slurper =  new groovy.json.JsonSlurper()
+        return tuple(gid, slurper.parseText(new File("$json").getText('UTF-8'))['n_junctions'] as Integer)
+    }
+    .choice(
+        gid_one_unitig_ch, gid_too_many_junctions_ch, gid_several_unitigs_ch
+    ){ vals ->
         if (vals[1] == 0) {return 0}
-	if (params.max_junctions > 0 && vals[1] > params.max_junctions) {return 1}
-	return 2
+	    if (params.max_junctions > 0 && vals[1] > params.max_junctions) {return 1}
+	    return 2
     }
 
 process singleTranscripts {
@@ -245,7 +276,7 @@ process candidateTranscripts {
 
     output:
     set(gid, file('g*.candidate_transcripts.fa.gz')) optional true into separate_candidate_transcripts_ch
-    set(gid, file('g*.candidate_transcripts.fa.gz.skipped'), file(graph)) optional true into skipped_subgraphs_ch
+    set(gid, file('g*.candidate_transcripts.fa.gz.skipped'), file(graph)) optional true into skipped_in_candidate_search_ch
 
     """
     #!/usr/bin/env python3
@@ -300,17 +331,22 @@ process candidateTranscripts {
 
 }
 
-skipped_subgraphs_ch
+skipped_in_candidate_search_ch
     .mix(
-    skipped_bc_too_large_ch
-	.map{it[0]}
-	.join(gid_traversals_for_skipped_bc_too_large_ch)
-	.map{[it[0], "NA", it[1][0]]}
+        gid_skipped_bc_too_large_ch
+        .map{it[0]}
+        .join(gid_traversals_for_skipped_bc_too_large_ch)
+        .map{[it[0], "NA", it[1][0]]}
     )
+    .into{
+        skipped_gid_ch;
+        skipped_gid_for_storage_ch;
+    }
+
+skipped_gid_for_storage_ch
     .collectFile(storeDir: 'skipped_subgraphs'){ item ->
         [ 'skipped_subgraphs.txt', item.join('\t')  + '\n' ]
     }
-
 
 process buildKallistoIndices {
     publishDir 'kallisto_indices'
@@ -391,6 +427,7 @@ process assignReadsToSubgraphs {
 }
 
 // Extract graph id and collect read pairs by gid
+gid_assigned_reads_for_secondary_assembly_ch = Channel.create()
 assigned_reads_ch
     .flatten()
     .toSortedList()
@@ -402,7 +439,51 @@ assigned_reads_ch
     }
     .groupTuple()
     .tap(gid_assigned_reads_for_links_ch)
+    .tap(gid_assigned_reads_for_secondary_assembly_ch)
     .set{gid_assigned_reads_for_kallisto_quant_ch}
+
+
+ureads_1_ch = Channel.create()
+ureads_2_ch = Channel.create()
+skipped_gid_ch
+        .join(gid_assigned_reads_for_secondary_assembly_ch)
+        .map{ tuple(it[0], it[2], it[3])}
+        .map{ [it[2]] }
+        .collect()
+        .transpose()
+        .set{unassembled_reads_ch}
+
+process concatUnassembledReads {
+    input:
+    file('reads') from unassembled_reads_ch
+
+    output:
+    file('output') into unassembled_reads_cat_ch
+
+    """
+    cat reads* > output
+    """
+}
+
+
+process publishUnassembledReads {
+    publishDir 'unassembled_reads', mode: 'copy'
+
+    input:
+    file('reads?.fa') from unassembled_reads_cat_ch
+                        .collect()
+
+    output:
+    file('reads*.fa.gz') into space
+
+    """
+    #!/usr/bin/env python3
+    from subprocess import run
+    from pathlib import Path
+    for idx, file in enumerate(['reads1.fa', 'reads2.fa']):
+        run(f'gzip -c < {file} > reads{idx+1}.fa.gz', shell=True)
+    """
+}
 
 process kallistoQuant {
     publishDir 'kallisto_quant'
