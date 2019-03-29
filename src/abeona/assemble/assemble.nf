@@ -29,7 +29,7 @@ process fullCortexGraph {
         '$params.mccortex', 'build', '$params.mccortex_args',
         '--kmer', '$params.kmer_size',
         '--sample', 'abeona',
-        '--threads', '$params.jobs',
+        '--threads', '\$JOBS',
     ]
     if '$params.fastx_forward' != 'null':
         cmd += ['--seq2', '$params.fastx_forward:$params.fastx_reverse']
@@ -59,7 +59,7 @@ process cleanCortexGraph {
     fi
     $params.mccortex clean $params.mccortex_args \
         -T\$MIN_TIP_LENGTH -U$params.min_unitig_coverage \
-        --threads $params.jobs \
+        --threads \$JOBS \
         --out full.clean.ctx full.ctx
     """
 }
@@ -504,7 +504,7 @@ process kallistoQuant {
     import shutil
     import sys
 
-    cmd = 'kallisto quant --threads $params.kallisto_threads -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
+    cmd = 'kallisto quant --threads \$KALLISTO_THREADS -i $index --output-dir g$gid -b $params.bootstrap_samples --plaintext'
     if '$params.fastx_single' == 'null':
         cmd += ' $reads'
     else:

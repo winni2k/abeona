@@ -116,7 +116,6 @@ def assemble_main(argv):
     validate_assemble_args(args, parser)
 
     from pathlib import Path
-    import json
     import subprocess
 
     out_dir = Path(args.out_dir)
@@ -129,19 +128,9 @@ def assemble_main(argv):
         pipeline_script.unlink()
     pipeline_script.symlink_to(package_script)
 
-    args_file = 'args.json'
-    args_dict = {a: getattr(args, a) for a in dir(args) if not a.startswith('_')}
-    args_dict['mccortex'] = f'mccortex {args.kmer_size}'
-    args_dict['mccortex_args'] = f'--sort --force -m {args.memory}G'
-    if args.max_read_length is None:
-        max_read_length = estimate_max_read_length(args)
-        assert max_read_length is not None
-        args_dict['max_read_length'] = max_read_length
+    args_file = write_args(args, out_dir)
 
-    args_dict['mccortex_thread_args'] = f'--force -m {args.memory // args.jobs}G'
-    with open(out_dir / args_file, 'w') as fh:
-        json.dump(args_dict, fh)
-    cmd = f'cd {out_dir} && nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
+    cmd = f'cd {out_dir} && KALLISTO_THREADS={args.kallisto_threads} JOBS={args.jobs} nextflow run {script_name} -process.maxForks {args.jobs} -params-file {args_file}'
     if args.with_report:
         cmd += ' -with-report nexttflow_report.html'
     if args.with_dag:
@@ -168,6 +157,23 @@ def assemble_main(argv):
             if d.is_dir() and not d.name.startswith('.'):
                 shutil.rmtree(d)
     return cprocess.returncode
+
+
+def write_args(args, out_dir):
+    import json
+
+    args_file = 'args.json'
+    args_dict = {a: getattr(args, a) for a in dir(args) if not a.startswith('_')}
+    args_dict['mccortex'] = f'mccortex {args.kmer_size}'
+    args_dict['mccortex_args'] = f'--sort --force -m {args.memory}G'
+    if args.max_read_length is None:
+        max_read_length = estimate_max_read_length(args)
+        assert max_read_length is not None
+        args_dict['max_read_length'] = max_read_length
+    args_dict['mccortex_thread_args'] = f'--force -m {args.memory // args.jobs}G'
+    with open(out_dir / args_file, 'w') as fh:
+        json.dump(args_dict, fh)
+    return args_file
 
 
 def estimate_max_read_length(args):

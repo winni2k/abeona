@@ -2,7 +2,7 @@ import gzip
 import itertools
 import re
 from pathlib import Path
-from subprocess import check_call
+import subprocess
 
 import attr
 import pytest
@@ -18,18 +18,21 @@ from cortexpy.utils import lexlo
 @attr.s(slots=True)
 class AbeonaRunner:
 
-    def run(self, *args):
+    def run(self, *args, **kwargs):
         argv = ['abeona'] + [str(a) for a in args]
-        check_call(argv)
+        return subprocess.run(argv, check=True, **kwargs)
 
-    def assemble(self, *args, no_cleanup=True):
+    def assemble(self, *args, no_cleanup=True, capture_stdout=False):
         argv = ['assemble'] + list(args)
         if '--min-tip-length' not in argv:
             argv += ['--min-tip-length', '0']
         if no_cleanup:
             argv.append('--no-cleanup')
         argv.append('--with-dag')
-        return self.run(*argv)
+        kwargs = {}
+        if capture_stdout:
+            kwargs['stdout'] = subprocess.PIPE
+        return self.run(*argv, **kwargs)
 
 
 @attr.s(slots=True)
@@ -341,6 +344,38 @@ class TestAssemble:
             sg_expect.has_transcripts(*expected_sequences[sg_id])
 
         expect.has_out_all_transcripts('AAAT', 'ATCC')
+
+    def test_re_run_with_different_threads_does_not_trigger_rebuild(self, tmpdir):
+        # given
+        kmer_size = 3
+        b = FastqBuilder(tmpdir / 'single.fq')
+        b.with_seqs('AAAT', 'ATCC')
+        input_fastq = b.build()
+
+        out_dir = Path(tmpdir) / 'abeona'
+        args = ['--fastx-single', input_fastq,
+                '--kallisto-fragment-length', 3,
+                '--kallisto-sd', 0.1,
+                '--resume',
+                '--bootstrap-samples', 10,
+                '--out-dir', out_dir,
+                '--kmer-size', kmer_size,
+                '--min-unitig-coverage', 0, ]
+        args1 = args + ['--jobs', 1, '--kallisto-threads', 1]
+        args2 = args + ['--jobs', 2, '--kallisto-threads', 2]
+
+        # when
+        AbeonaRunner().assemble(*args1)
+        completed = AbeonaRunner().assemble(*args2, capture_stdout=True)
+        stdout = completed.stdout.decode()
+        print(stdout)
+
+        # then
+        process_status_re = re.compile(r'(\w+)\sprocess')
+        for line in stdout.split('\n'):
+            match = process_status_re.search(line)
+            if match:
+                assert match.group(1) == 'Cached'
 
     def test_traverses_two_subgraphs_of_two_transcripts_into_four_transcripts(self, tmpdir):
 
@@ -1029,7 +1064,7 @@ class TestCandidateTranscriptAnnotation:
         expect = AbeonaExpectation(out_dir)
         expect.has_out_all_transcripts(seq_prefix + 'ACAACCC', seq_prefix + 'ACAACGG')
         expect.has_out_all_transcript_description_matching(
-            'prop_bs_est_counts_ge_2.0=[\d\.]+;est_count=8')
+            r'prop_bs_est_counts_ge_2.0=[\d\.]+;est_count=8')
 
 
 class TestBugsFromUsers:
