@@ -1,7 +1,6 @@
-ENV = pipenv run
 HYPOTHESIS_PROFILE=dev
-PYTHON = $(ENV) python
-PYTEST = $(ENV) pytest
+PYTHON = python
+PYTEST = pytest
 TEST_ARGS?= -- tests --hypothesis-profile $(HYPOTHESIS_PROFILE)
 
 test:
@@ -28,7 +27,7 @@ build: clean
 	$(MAKE) dist
 
 upload:
-	$(ENV) twine upload dist/*
+	twine upload dist/*
 
 deploy: check_git_dirty
 	$(MAKE) test TEST_ARGS='-r tests'
