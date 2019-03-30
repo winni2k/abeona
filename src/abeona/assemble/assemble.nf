@@ -1,6 +1,11 @@
 #!/usr/bin/env nextflow
+import groovy.json.JsonOutput;
 
-println params
+println ""
+println "Running nextflow script for abeona v0.44.1"
+println "Nextflow arguments from args.json:"
+println JsonOutput.prettyPrint(JsonOutput.toJson(params))
+println ""
 
 reads_ch = Channel
     .from(
