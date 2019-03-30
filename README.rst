@@ -5,15 +5,15 @@ abeona
     :alt: Travis-CI Build Status
     :target: https://travis-ci.org/winni2k/abeona
 
-.. image:: https://img.shields.io/github/commits-since/winni2k/abeona/v0.44.1.svg
+.. image:: https://img.shields.io/github/commits-since/winni2k/abeona/v0.44.2.svg
     :alt: Commits since latest release
-    :target: https://github.com/winni2k/abeona/compare/v0.44.1...master
+    :target: https://github.com/winni2k/abeona/compare/v0.44.2...master
 
 .. image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat
     :alt: freedom
     :target: http://bioconda.github.io/recipes/abeona/README.html
 
-abeona v0.44.1
+abeona v0.44.2
 
 A simple transcriptome assembler based on kallisto and Cortex graphs.
 

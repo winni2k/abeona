@@ -2,7 +2,7 @@
 import groovy.json.JsonOutput;
 
 println ""
-println "Running nextflow script for abeona v0.44.1"
+println "Running nextflow script for abeona v0.44.2"
 println "Nextflow arguments from args.json:"
 println JsonOutput.prettyPrint(JsonOutput.toJson(params))
 println ""
