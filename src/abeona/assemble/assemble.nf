@@ -7,6 +7,13 @@ println "Nextflow arguments from args.json:"
 println JsonOutput.prettyPrint(JsonOutput.toJson(params))
 println ""
 
+gather_unassembled_reads = false
+if (params.report_unassembled_reads || params.assemble_unassembled_reads_with_transabyss){
+    gather_unassembled_reads = true
+    println 'bla!'
+}
+
+
 reads_ch = Channel
     .from(
         params.fastx_single,
@@ -156,7 +163,7 @@ gid_several_unitigs_ch
 gid_for_subgraph_list_ch = Channel.create()
 gid_skipped_bc_too_large_ch = Channel.create()
 gid_too_many_junctions_ch = Channel.create()
-if (params.assemble_ignored_graphs_with_transabyss) {
+if (gather_unassembled_reads) {
     gid_skipped_bc_too_large_for_subgraph_list_ch = Channel.create()
     gid_too_many_junctions_ch
         .into{
@@ -417,7 +424,7 @@ process assignReadsToSubgraphs {
     file('subgraph_list.txt') from subgraph_list_for_assignment_ch
 
     output:
-	file 'g*.fa' into assigned_reads_ch
+	file 'g*.fa.gz' into assigned_reads_ch
 
     """
     command='abeona reads subgraph_list.txt --record-buffer-size $params.record_buffer_size'
@@ -439,7 +446,7 @@ assigned_reads_ch
     .flatten()
     .map { file ->
            def file_name = file.name.toString()
-           def match = file_name =~ /g(\d+).\d.fa$/
+           def match = file_name =~ /g(\d+).\d.fa.gz$/
            return tuple(match[0][1], file)
     }
     .groupTuple()
@@ -459,6 +466,9 @@ skipped_gid_ch
         .set{unassembled_reads_ch}
 
 process concatUnassembledReads {
+    when:
+    gather_unassembled_reads
+
     input:
     file('reads') from unassembled_reads_ch
 
@@ -470,23 +480,22 @@ process concatUnassembledReads {
     """
 }
 
-
 process publishUnassembledReads {
     publishDir 'unassembled_reads', mode: 'copy'
 
+    when:
+    params.report_unassembled_reads
+
     input:
-    file('reads?.fa') from unassembled_reads_cat_ch
+    file('input?.fa.gz') from unassembled_reads_cat_ch
                         .collect()
 
     output:
-    file('reads*.fa.gz') into space
+    file('reads?.fa.gz') into space
 
     """
-    #!/usr/bin/env python3
-    from subprocess import run
-    from pathlib import Path
-    for idx, file in enumerate(['reads1.fa', 'reads2.fa']):
-        run(f'gzip -c < {file} > reads{idx+1}.fa.gz', shell=True)
+    ln -s input1.fa.gz reads1.fa.gz
+    ln -s input2.fa.gz reads2.fa.gz
     """
 }
 

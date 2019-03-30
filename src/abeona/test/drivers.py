@@ -201,6 +201,6 @@ class ReadsTestDriver:
             command += f' --record-buffer-size {self.record_buffer_size}'
         abeona_main(command.split())
 
-        reads = list(Path(out_dir).glob('g*.fa'))
+        reads = list(Path(out_dir).glob('g*.fa.gz'))
 
         return TraversalsAndFastas(Fastas(reads), traversal_expectation)

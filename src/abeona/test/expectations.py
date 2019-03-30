@@ -1,55 +1,11 @@
-import gzip
-from pathlib import Path
 import json
+from pathlib import Path
+from contextlib import closing
 
 import attr
 from cortexpy.graph.parser.streaming import load_cortex_graph
 from cortexpy.test.expectation import KmerGraphExpectation, Fasta
-
-
-# @attr.s(slots=True)
-# class Graph:
-#     mccortex_graph = attr.ib()
-#     traversal = attr.ib(init=False)
-#     kmers = attr.ib(init=False)
-#     kmer_strings = attr.ib(init=False)
-#
-#     def __attrs_post_init__(self):
-#         with open(self.mccortex_graph, 'rb') as fh:
-#             self.kmer_strings = set([''.join(k) for k in kmer_list_generator_from_stream(fh)])
-#             self.traversal = Engine(ra_parser=cortexpy.graph.parser.RandomAccess(fh)) \
-#                 .traverse_from_each_kmer_in_iterable(self.kmer_strings) \
-#                 .graph
-#
-#     def has_n_subgraphs(self, n):
-#         subgraphs = list(nx.weakly_connected_component_subgraphs(self.traversal))
-#         assert n == len(subgraphs)
-#         return self
-#
-#     def has_kmer_strings(self, *kmer_strings):
-#         assert self.kmer_strings == set(kmer_strings)
-#         return self
-
-
-# @attr.s(slots=True)
-# class Graphs:
-#     mccortex_graphs = attr.ib()
-#     graph_expectations = attr.ib(init=False)
-#
-#     def __attrs_post_init__(self):
-#         self.graph_expectations = [Graph(graph) for graph in self.mccortex_graphs]
-#
-#     def has_graph_with_kmers(self, *kmers):
-#         kmers = set(kmers)
-#         for expect in self.graph_expectations:
-#             if kmers == expect.kmer_strings:
-#                 return self
-#         assert False
-#
-#     def has_n_graphs(self, n):
-#         assert n == len(self.graph_expectations)
-#         return self
-#
+from .utils import get_maybe_gzipped_file_handle
 
 @attr.s(slots=True)
 class AbeonaKmerGraphExpectation(KmerGraphExpectation):
@@ -59,6 +15,7 @@ class AbeonaKmerGraphExpectation(KmerGraphExpectation):
     def has_meta_info(self, key, val):
         assert val == self.meta[key]
         return self
+
 
 @attr.s(slots=True)
 class Traversals:
@@ -70,7 +27,7 @@ class Traversals:
             AbeonaKmerGraphExpectation(
                 load_cortex_graph(open(graph, 'rb')),
                 graph_path=graph,
-                meta=json.load(open(str(graph)+'.json', 'r'))
+                meta=json.load(open(str(graph) + '.json', 'r'))
             ) for graph in self.traversals
         ]
 
@@ -96,7 +53,7 @@ class Fastas:
         fastas = []
         for fasta in sorted(self.fastas):
             if Path(fasta).with_suffix('').stem.startswith(stem):
-                with open(fasta, 'rt') as fh:
+                with closing(get_maybe_gzipped_file_handle(fasta, 'rt')) as fh:
                     fastas.append(Fasta(fh.read()))
         if len(fastas) == 0:
             assert False, f'Could not find stem ({stem}) in fastas\n{self.fastas}'

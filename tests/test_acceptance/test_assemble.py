@@ -1,8 +1,8 @@
 import gzip
 import itertools
 import re
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import attr
 import pytest
@@ -232,7 +232,7 @@ class AbeonaSubgraphExpectation(object):
             assert not reads.is_file()
             return
         assert reads.is_file()
-        with open(str(reads), 'rt') as fh:
+        with gzip.open(str(reads), 'rt') as fh:
             seqs = list(SeqIO.parse(fh, file_type))
 
         seq_strings = [str(s.seq) for s in seqs]
@@ -244,10 +244,10 @@ class AbeonaSubgraphExpectation(object):
         return self
 
     def has_reads_assigned(self, reads, reads2=None):
-        self._has_reads(*reads, dir_name='reads_assigned_to_subgraphs', suffix='.1.fa',
+        self._has_reads(*reads, dir_name='reads_assigned_to_subgraphs', suffix='.1.fa.gz',
                         file_type='fasta')
         if reads2 is not None:
-            self._has_reads(*reads2, dir_name='reads_assigned_to_subgraphs', suffix='.2.fa',
+            self._has_reads(*reads2, dir_name='reads_assigned_to_subgraphs', suffix='.2.fa.gz',
                             file_type='fasta')
         return self
 
@@ -294,13 +294,15 @@ class TestAssemble:
         b.with_seq('AAAC')
 
         out_dir = Path(tmpdir) / 'abeona'
-        args = ['--fastx-single', b.build(),
-                '--kallisto-fragment-length', 3,
-                '--kallisto-sd', 0.1,
-                '--bootstrap-samples', 10,
-                '--out-dir', out_dir,
-                '--kmer-size', 3,
-                '--min-unitig-coverage', 0, ]
+        args = [
+            '--fastx-single', b.build(),
+            '--kallisto-fragment-length', 3,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 10,
+            '--out-dir', out_dir,
+            '--kmer-size', 3,
+            '--min-unitig-coverage', 0,
+        ]
 
         # when
         AbeonaRunner().assemble(*args, no_cleanup=False)
@@ -527,7 +529,7 @@ class TestAssemble:
                 '--max-junctions', 1,
                 '--min-unitig-coverage', 0]
         if assemble_ignored_sg_with_transabyss:
-            args += ['--assemble-ignored-graphs-with-transabyss']
+            args += ['--report-unassembled-reads']
 
         # when
         AbeonaRunner().assemble(*args)
@@ -568,7 +570,7 @@ class TestAssemble:
                 '--kmer-size', 5,
                 '--max-junctions', 1,
                 '--min-unitig-coverage', 0,
-                '--assemble-ignored-graphs-with-transabyss']
+                '--report-unassembled-reads']
 
         # when
         AbeonaRunner().assemble(*args)
@@ -577,7 +579,7 @@ class TestAssemble:
         expect = AbeonaExpectation(out_dir)
 
         expect.has_n_missing_subgraphs(2)
-        expect.has_n_unassembled_reads(8*4)
+        expect.has_n_unassembled_reads(8 * 4)
         expect.has_out_all_transcripts()
 
     def test_with_read_pairs_traverses_graph_of_two_transcripts_into_two_transcripts(self, tmpdir):
@@ -1118,6 +1120,7 @@ class TestBugsFromUsers:
             '--bootstrap-samples', 10,
             '--out-dir', out_dir,
             '--kmer-size', 47,
+            '--report-unassembled-reads'
         ]
 
         # when (no error)

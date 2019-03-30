@@ -1,3 +1,4 @@
+import gzip
 from logging import getLogger
 from pathlib import Path
 
@@ -23,12 +24,12 @@ class GraphData:
 
     def __attrs_post_init__(self):
         Path(self.prefix).parent.mkdir(exist_ok=True)
-        self._file1 = self.prefix + f'.1.fa'
+        self._file1 = self.prefix + f'.1.fa.gz'
         path = Path(self._file1)
         if path.is_file():
             path.unlink()
         if self.is_paired:
-            self._file2 = self.prefix + f'.2.fa'
+            self._file2 = self.prefix + f'.2.fa.gz'
             path = Path(self._file2)
             if path.is_file():
                 path.unlink()
@@ -36,9 +37,9 @@ class GraphData:
     @property
     def fh(self):
         if self._fh is None:
-            self._fh = [open(self._file1, 'at')]
+            self._fh = [gzip.open(self._file1, 'at')]
             if self.is_paired:
-                self._fh.append(open(self._file2, 'at'))
+                self._fh.append(gzip.open(self._file2, 'at'))
         return self._fh
 
     def store_record_pair(self, *records):

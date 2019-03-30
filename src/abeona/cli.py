@@ -76,8 +76,10 @@ def assemble_main(argv):
                        help='Ignore graphs that have more than this number of paths')
     group.add_argument('--no-links', action='store_true',
                        help='Do not use links in candidate transcript creation')
-    group.add_argument('--assemble-ignored-graphs-with-transabyss', action='store_true',
-                       help='Try and assemble ignored graphs with transabyss')
+    group.add_argument('--report-unassembled-reads', action='store_true',
+                       help='Store reads from ignored graphs in unassembled_reads')
+    group.add_argument('--assemble-unassembled-reads-with-transabyss', action='store_true',
+                       help='Try and assemble reads from ignored graphs with transabyss')
 
     group = parser.add_argument_group('kallisto arguments',
                                       description='Arguments passed directly on to kallisto')
@@ -154,7 +156,7 @@ def assemble_main(argv):
     import shutil
     if not args.no_cleanup:
         for d in out_dir.iterdir():
-            if d.is_dir() and not d.name.startswith('.'):
+            if d.is_dir() and not d.name.startswith('.') and not d.name == 'unassembled_reads':
                 shutil.rmtree(d)
     return cprocess.returncode
 
