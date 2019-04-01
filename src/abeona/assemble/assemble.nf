@@ -10,7 +10,6 @@ println ""
 gather_unassembled_reads = false
 if (params.report_unassembled_reads || params.assemble_unassembled_reads_with_transabyss){
     gather_unassembled_reads = true
-    println 'bla!'
 }
 
 
