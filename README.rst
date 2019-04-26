@@ -91,6 +91,15 @@ Toy Example
     >g0_p1 prop_bs_est_counts_ge_1=1.0
     AAAAACCC
 
+Development
+-----------
+
+::
+
+    conda env create -f environment.yml my-dev-env
+    conda activate my-dev-env
+    make test
+
 License
 -------
 
