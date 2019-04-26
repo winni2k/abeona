@@ -68,8 +68,14 @@ def assemble_main(argv):
                             ' A value of -1 sets the min tip length to the value of --kmer-size')
     group.add_argument('--min-unitig-coverage', type=int, default=4,
                        help="Prune unitigs with mean coverage below this value")
-    group.add_argument('--prune-tips-with-mccortex', action='store_true',
-                       help="Use Mccortex instead of cortexpy to prune unitigs.")
+    group.add_argument('--no-prune-tips-with-mccortex', action='store_true',
+                       help="Instead of Mccortex use cortexpy to prune unitigs. "
+                            "This is slower and not recommended at this time.")
+    group.add_argument('--prune-tips-with-mccortex', action='store_true')
+    group.add_argument('--prune-tips-iteratively', action='store_true',
+                       help="Prune the graph of tip lengths x = 2^n while x is less than --min-tip-length. "
+                            "Finally, prune graph of tips shorter than --min-tip-length. "
+                            "Currently only works when pruning with Mccortex. ")
 
     group = parser.add_argument_group('Candidate transcript creation')
     group.add_argument('--max-paths-per-subgraph', type=int, default=0,
@@ -112,9 +118,7 @@ def assemble_main(argv):
                             ' with too many junctions to process effectively.')
 
     args = parser.parse_args(args=argv)
-    if args.min_tip_length == -1:
-        args.min_tip_length = args.kmer_size
-    make_file_paths_absolute(args)
+    args = preprocess_assemble_args(args)
     validate_assemble_args(args, parser)
 
     from pathlib import Path
@@ -241,6 +245,16 @@ def reads_main(argv):
     return main(args)
 
 
+def preprocess_assemble_args(args):
+    if args.min_tip_length == -1:
+        args.min_tip_length = args.kmer_size
+    if not args.prune_tips_with_mccortex and not args.no_prune_tips_with_mccortex:
+        args.prune_tips_with_mccortex = True
+    make_file_paths_absolute(args)
+
+    return args
+
+
 def validate_assemble_args(args, parser):
     if (args.fastx_forward is None) != (args.fastx_reverse is None):
         raise parser.error(
@@ -254,6 +268,9 @@ def validate_assemble_args(args, parser):
             raise parser.error('Required: --kallisto-sd')
     if int(args.jobs) < int(args.kallisto_threads):
         raise parser.error('--jobs needs to be greater or equal to --kallisto-threads')
+    assert not (args.prune_tips_with_mccortex and args.no_prune_tips_with_mccortex)
+    if args.prune_tips_iteratively:
+        assert args.prune_tips_with_mccortex
 
 
 def make_file_paths_absolute(args):

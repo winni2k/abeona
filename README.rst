@@ -107,6 +107,21 @@ If you use abeona in your research, please cite:
 Changelog
 ---------
 
+Version 0.45.0
+~~~~~~~~~~~~~~
+
+:Date: XXX
+
+New features
+............
+
+**abeona assemble**
+
+* Mccortex is now used for pruning by default
+* The command line argument ``--prune-tips-with-mccortex`` is now deprecated.
+  Instead use ``--no-prune-tips-with-mccortex``.
+* New iterative pruning strategy ``--prune-tips-iteratively``.
+
 Version 0.44.0
 ~~~~~~~~~~~~~~
 

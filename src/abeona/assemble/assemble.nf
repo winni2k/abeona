@@ -64,14 +64,54 @@ process cleanCortexGraph {
     file 'full.clean.ctx' into clean_cortex_graphs
 
     """
-    MIN_TIP_LENGTH=0
-    if [ '$params.prune_tips_with_mccortex' == 'true' ]; then
-        MIN_TIP_LENGTH='$params.min_tip_length'
-    fi
-    $params.mccortex clean $params.mccortex_args \
-        -T\$MIN_TIP_LENGTH -U$params.min_unitig_coverage \
-        --threads \$JOBS \
-        --out full.clean.ctx full.ctx
+    #!/usr/bin/env python3
+    from subprocess import run
+    import sys
+    import shutil
+
+    min_tip_length = $params.min_tip_length
+    initial_clean_min_tip_length = 0
+    if '$params.prune_tips_iteratively' != 'true' and '$params.prune_tips_with_mccortex' == 'true':
+        inital_clean_min_tip_length = min_tip_length
+
+    print('Cleaning unitigs with median coverage below $params.min_unitig_coverage', file=sys.stderr)
+    run(
+        f'''
+        $params.mccortex clean $params.mccortex_args \
+            -T{initial_clean_min_tip_length} \
+            -U$params.min_unitig_coverage \
+            --threads \$JOBS \
+            --out full.unitig_cov.ctx full.ctx
+        '''
+        , shell=True
+    )
+
+    if '$params.no_prune_tips_with_mccortex' == 'true':
+        shutil.move('full.unitig_cov.ctx', 'full.clean.ctx')
+        exit(0)
+    else:
+        shutil.move('full.unitig_cov.ctx', 'full.wip.ctx')
+
+    if '$params.prune_tips_iteratively' == 'true':
+        iter_mtl = 1
+    else:
+        iter_mtl = max(min_tip_length - 1, 1)
+    while iter_mtl < min_tip_length:
+        iter_mtl *= 2
+        if min_tip_length < iter_mtl:
+            iter_mtl = min_tip_length
+        print(f'Pruning tips shorter than {iter_mtl}', file=sys.stderr)
+        run(
+            f'''
+            $params.mccortex clean $params.mccortex_args \
+                -T{iter_mtl} -U0 \
+                --threads \$JOBS \
+                --out full.wip.ctx.tmp full.wip.ctx
+            '''
+            , shell=True
+        )
+        shutil.move('full.wip.ctx.tmp', 'full.wip.ctx')
+    shutil.move('full.wip.ctx', 'full.clean.ctx')
     """
 }
 
@@ -314,7 +354,7 @@ process candidateTranscripts {
     set -o pipefail
     {cortexpy_cmd} | gzip -c > {fasta}.tmp
     '''
-    completed_process = subprocess.run(cmd, shell=True, executable='/bin/bash', stderr=subprocess.PIPE)
+    completed_process = subprocess.run(cmd, shell=True, executable='/bin/bash', stderr=subprocess.PIPE, encoding='utf8')
     print(completed_process.stderr, file=sys.stderr)
 
     exitcode = completed_process.returncode
@@ -330,11 +370,17 @@ process candidateTranscripts {
                 break
         if n_seqs == 1:
             shutil.move(fasta, transcript)
-        elif n_seqs == 0 or n_long_seqs == 0:
+        elif n_seqs == 0:
+            print('No candidate transcripts found: skipping', file=sys.stderr)
+            shutil.move(fasta, skipped)
+        elif n_long_seqs == 0:
+            print('No candidate transcripts longer than read length ($params.max_read_length) found: skipping', file=sys.stderr)
             shutil.move(fasta, skipped)
     elif exitcode == CORTEXPY_EXIT_CODES['MAX_PATH_EXCEEDED']:
+        print('Max paths exceeded: skipping', file=sys.stderr)
         shutil.move(f'{fasta}.tmp', skipped)
-    elif b'ValueError: Links do not appear to match unitigs' in completed_process.stderr:
+    elif 'ValueError: Links do not appear to match unitigs' in completed_process.stderr:
+        print('Links do not match unitigs: skipping', file=sys.stderr)
         shutil.move(f'{fasta}.tmp', skipped)
     else:
         exit(exitcode)

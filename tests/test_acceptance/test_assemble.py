@@ -691,8 +691,8 @@ class TestAssemble:
                 '--min-tip-length', min_tip_length,
                 '--min-unitig-coverage', 0,
                 '--quiet']
-        if prune_tips_with_mccortex:
-            args += ['--prune-tips-with-mccortex']
+        if not prune_tips_with_mccortex:
+            args += ['--no-prune-tips-with-mccortex']
 
         # when
         AbeonaRunner().assemble(*args)
@@ -789,6 +789,40 @@ class TestAssemble:
             .has_subgraph_with_kmers('ATATATATATATATATATATATATATATATATATATATATATATATA') \
             .has_transcripts('ATATATATATATATATATATATATATATATATATATATATATATATA')
         expect.has_n_subgraphs(2)
+
+    def test_recursive_pruning(self, tmpdir):
+        # given
+        b = FastqBuilder(tmpdir / 'input.fastq')
+
+        base_seq = 'CCCTCAACAGACTGGAGTTATGTAATATGCGTTATGCTTGTGTGCATCGGGGCCAGTGGG'
+        b.with_seq('TTTT' + base_seq)
+        b.with_seq('AAA' + base_seq)
+        b.with_seq('TAA' + base_seq)
+        b.with_seq(base_seq + 'CCC')  # to avoid max_read_length filter
+
+        input_fastq = b.build()
+        out_dir = Path(tmpdir) / 'abeona'
+        args = [
+            '--fastx-single', input_fastq,
+            '--kallisto-fragment-length', 60,
+            '--kallisto-sd', 0.1,
+            '--bootstrap-samples', 2,
+            '--prune-tips-iteratively',
+            # keep everything that makes it through pruning
+            '--estimated-count-threshold', 0,
+            '--bootstrap-proportion-threshold', 0,
+            '--out-dir', out_dir,
+            '--kmer-size', 47,
+            '--min-unitig-coverage', 0,
+            '--min-tip-length', 4,
+        ]
+
+        # when
+        AbeonaRunner().assemble(*args)
+
+        # then
+        expect = AbeonaExpectation(out_dir)
+        expect.has_out_all_transcripts('TTTT' + base_seq + 'CCC')
 
 
 class TestLinks:
