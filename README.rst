@@ -69,10 +69,11 @@ Toy Example
     # Let's create a FASTA consisting of sub-reads from two transcripts: AAAAACCC and AAAAAGGG
     $ for s in AAAAACC AAAAAGG AAAACCC AAAAGGG; do for i in $(seq 1 3); do echo -e ">_\n$s" >> input.fa; done; done
 
-    # Now feed the fasta to the graph assembly step with --fastx-single and to the kallisto filtering
-    # step with --kallisto-fastx-single.
+    # Now feed the fasta to the graph assembly step with --fastx-single 
+    # keep a log in test.log
     $ abeona assemble -k 5 -m 4 --fastx-single input.fa --min-tip-length 1 \
-        --kallisto-fragment-length 7 --kallisto-sd 1 -o test --no-links
+        --kallisto-fragment-length 7 --kallisto-sd 1 -o test --no-links \
+        2>&1 | tee test.log
     N E X T F L O W  ~  version 19.01.0
     Launching `assemble.nf` [marvelous_rosalind] - revision: 78bfc98f1f
 
