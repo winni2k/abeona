@@ -30,11 +30,14 @@ Installation
 
 The easiest way to install abeona is into a `conda <https://conda.io/miniconda.html>`_ environment.
 
-After activating the conda environment, run:
+To create a conda environment named "abeona" run:
 
 .. code-block:: bash
 
-    conda install abeona -c conda-forge -c bioconda
+    conda install create -n abeona abeona -c conda-forge -c bioconda
+    
+    # activate the environment
+    conda activate abeona
 
 Usage
 -----
