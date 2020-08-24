@@ -71,8 +71,8 @@ Toy Example
 
     # Now feed the fasta to the graph assembly step with --fastx-single and to the kallisto filtering
     # step with --kallisto-fastx-single.
-    $ abeona assemble -k 5 -m 4 --fastx-single input.fa --kallisto-fastx-single \
-        input.fa --kallisto-fragment-length 7 --kallisto-sd 1 -o test --no-links
+    $ abeona assemble -k 5 -m 4 --fastx-single input.fa \
+        --kallisto-fragment-length 7 --kallisto-sd 1 -o test --no-links
     N E X T F L O W  ~  version 0.31.1
     Launching `assemble.nf` [determined_allen] - revision: 11c20ed355
     [bootstrap_samples:100, fastx_forward:null, fastx_reverse:null, fastx_single:/Users/winni/tmp/input.fa, initial_contigs:null, jobs:2, kallisto_fastx_forward:null, kallisto_fastx_reverse:null, kallisto_fastx_single:/Users/winni/tmp/input.fa, kallisto_fragment_length:7.0, kallisto_sd:1.0, kmer_size:5, max_paths_per_subgraph:0, memory:4, merge_candidates_before_kallisto:false, min_tip_length:0, min_unitig_coverage:4, out_dir:test, quiet:false, resume:false, mccortex:mccortex 5, mccortex_args:--sort --force -m 4G]
