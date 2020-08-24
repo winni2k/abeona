@@ -34,7 +34,7 @@ To create a conda environment named "abeona" run:
 
 .. code-block:: bash
 
-    conda install create -n abeona abeona -c conda-forge -c bioconda
+    conda install create -n abeona abeona -c conda-forge -c bioconda -y
     
     # activate the environment
     conda activate abeona
