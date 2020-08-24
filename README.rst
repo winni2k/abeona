@@ -71,27 +71,69 @@ Toy Example
 
     # Now feed the fasta to the graph assembly step with --fastx-single and to the kallisto filtering
     # step with --kallisto-fastx-single.
-    $ abeona assemble -k 5 -m 4 --fastx-single input.fa \
+    $ abeona assemble -k 5 -m 4 --fastx-single input.fa --min-tip-length 1 \
         --kallisto-fragment-length 7 --kallisto-sd 1 -o test --no-links
-    N E X T F L O W  ~  version 0.31.1
-    Launching `assemble.nf` [determined_allen] - revision: 11c20ed355
-    [bootstrap_samples:100, fastx_forward:null, fastx_reverse:null, fastx_single:/Users/winni/tmp/input.fa, initial_contigs:null, jobs:2, kallisto_fastx_forward:null, kallisto_fastx_reverse:null, kallisto_fastx_single:/Users/winni/tmp/input.fa, kallisto_fragment_length:7.0, kallisto_sd:1.0, kmer_size:5, max_paths_per_subgraph:0, memory:4, merge_candidates_before_kallisto:false, min_tip_length:0, min_unitig_coverage:4, out_dir:test, quiet:false, resume:false, mccortex:mccortex 5, mccortex_args:--sort --force -m 4G]
+    N E X T F L O W  ~  version 19.01.0
+    Launching `assemble.nf` [marvelous_rosalind] - revision: 78bfc98f1f
+
+    Running nextflow script for abeona v0.45.0
+    Nextflow arguments from args.json:
+    {
+        "assemble_unassembled_reads_with_transabyss": false,
+        "bootstrap_proportion_threshold": 0.95,
+        "bootstrap_samples": 100,
+        "estimated_count_threshold": 1,
+        "extra_start_kmer": null,
+        "fastx_forward": null,
+        "fastx_reverse": null,
+        "fastx_single": "/Volumes/mac-3/home/Projects/caina/2020-08-24_abeona/input.fa",
+        "initial_contigs": null,
+        "jobs": 2,
+        "kallisto_fragment_length": 7.0,
+        "kallisto_sd": 1.0,
+        "kallisto_threads": 2,
+        "kmer_size": "5",
+        "max_junctions": 0,
+        "max_paths_per_subgraph": 0,
+        "max_read_length": 7,
+        "memory": 4,
+        "min_tip_length": 1,
+        "min_unitig_coverage": 4,
+        "no_cleanup": false,
+        "no_links": true,
+        "no_prune_tips_with_mccortex": false,
+        "out_dir": "test",
+        "prune_tips_iteratively": false,
+        "prune_tips_with_mccortex": true,
+        "quiet": false,
+        "record_buffer_size": -1,
+        "report_unassembled_reads": false,
+        "resume": false,
+        "with_dag": false,
+        "with_report": false,
+        "mccortex": "mccortex 5",
+        "mccortex_args": "--sort --force -m 4G",
+        "mccortex_thread_args": "--force -m 2G"
+    }
+
     [warm up] executor > local
-    [26/119d41] Submitted process > fullCortexGraph
-    [fc/585605] Submitted process > cleanCortexGraph
-    [dd/40b5fc] Submitted process > pruneCortexGraphOfTips
-    [36/f63343] Submitted process > traverseCortexSubgraphs
-    [23/6d9033] Submitted process > candidateTranscripts (1)
-    [d5/05d417] Submitted process > buildKallistoIndices (1)
-    [ac/e36d53] Submitted process > kallistoQuant (1)
-    [ec/2b258d] Submitted process > filter_transcripts (1)
-    [49/d4c7e3] Submitted process > concatTranscripts
+    [3d/255de7] Submitted process > fullCortexGraph
+    [2c/c20fdf] Submitted process > cleanCortexGraph
+    [b0/909834] Submitted process > traverseCortexSubgraphs (1)
+    [b2/c75eec] Submitted process > createSubgraphList
+    [18/2c45c7] Submitted process > assignReadsToSubgraphs
+    [f8/b4c61b] Submitted process > threadReads (1)
+    [d9/7e6528] Submitted process > candidateTranscripts (1)
+    [25/ed539b] Submitted process > buildKallistoIndices (1)
+    [c7/9c5b50] Submitted process > kallistoQuant (1)
+    [e7/5b2330] Submitted process > filter_transcripts (1)
+    [9d/3f9fa5] Submitted process > concatTranscripts
 
     # View the resulting assembled transcripts
-    $ zcat test/all_transcripts/transcripts.fa.gz
-    >g0_p0 prop_bs_est_counts_ge_1=0.98
+    $ cat test/transcripts.fa
+    >g0_p0 prop_bs_est_counts_ge_1=0.99;est_count=3
     AAAAAGGG
-    >g0_p1 prop_bs_est_counts_ge_1=1.0
+    >g0_p1 prop_bs_est_counts_ge_1=0.97;est_count=3
     AAAAACCC
 
 Development
